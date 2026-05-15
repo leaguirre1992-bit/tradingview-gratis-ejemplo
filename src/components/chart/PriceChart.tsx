@@ -164,6 +164,20 @@ export function PriceChart({ symbol, timeframe }: Props) {
         fontSize: 11,
         panes: { separatorColor: TV_COLORS.border, separatorHoverColor: TV_COLORS.border },
       },
+      localization: {
+        timeFormatter: (time: any) => {
+          const date = new Date(time * 1000);
+          return new Intl.DateTimeFormat("es-US", {
+            timeZone: "America/New_York",
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            minute: "numeric",
+            hour12: false,
+          }).format(date);
+        },
+      },
       grid: {
         vertLines: { color: TV_COLORS.grid },
         horzLines: { color: TV_COLORS.grid },
@@ -178,6 +192,17 @@ export function PriceChart({ symbol, timeframe }: Props) {
         textColor: TV_COLORS.textMuted,
       },
       timeScale: {
+        tickMarkFormatter: (time: any, tickMarkType: number) => {
+          const date = new Date(time * 1000);
+          if (tickMarkType === 0) {
+            return new Intl.DateTimeFormat("es-US", { timeZone: "America/New_York", year: "numeric" }).format(date);
+          } else if (tickMarkType === 1) {
+            return new Intl.DateTimeFormat("es-US", { timeZone: "America/New_York", month: "short" }).format(date);
+          } else if (tickMarkType === 2) {
+            return new Intl.DateTimeFormat("es-US", { timeZone: "America/New_York", day: "numeric" }).format(date);
+          }
+          return new Intl.DateTimeFormat("es-US", { timeZone: "America/New_York", hour: "numeric", minute: "numeric", hour12: false }).format(date);
+        },
         borderColor: TV_COLORS.border,
         timeVisible: true,
         secondsVisible: false,
@@ -635,7 +660,7 @@ export function PriceChart({ symbol, timeframe }: Props) {
         const isCrypto = symbol.endsWith("USDT");
         const klines = isCrypto 
           ? await fetchKlines(symbol, timeframe, 1000)
-          : await fetchPolygonKlines(symbol, timeframe, 1000);
+          : await fetchPolygonKlines(symbol, timeframe, 50000);
           
         if (cancelled) return;
         candlesRef.current = klines;
@@ -663,6 +688,7 @@ export function PriceChart({ symbol, timeframe }: Props) {
         updateRSI();
         updateMACD();
         chartRef.current?.timeScale().fitContent();
+        candleSeriesRef.current?.priceScale().applyOptions({ autoScale: true });
         requestAnimationFrame(() => recomputePaneOffsets());
 
         if (klines.length > 0) {
