@@ -16,9 +16,9 @@ import {
 } from "@/lib/store/chart-store";
 
 const TITLES: Record<IndicatorKey, string> = {
-  ema20: "EMA — Slot 1",
-  ema50: "EMA — Slot 2",
-  ema200: "EMA — Slot 3",
+  sma8: "SMA — Slot 1",
+  sma20: "SMA — Slot 2",
+  sma200: "SMA — Slot 3",
   rsi: "RSI",
   macd: "MACD",
   volume: "Volumen",
@@ -74,9 +74,9 @@ interface FormProps {
 function SettingsForm({ target, config, onSave, onReset }: FormProps) {
   // Local draft state to avoid recalculating chart on every keystroke
   const [draft, setDraft] = useState({
-    ema20: config.ema20,
-    ema50: config.ema50,
-    ema200: config.ema200,
+    sma8: config.sma8,
+    sma20: config.sma20,
+    sma200: config.sma200,
     rsi: config.rsi,
     macdFast: config.macdFast,
     macdSlow: config.macdSlow,
@@ -85,9 +85,9 @@ function SettingsForm({ target, config, onSave, onReset }: FormProps) {
 
   useEffect(() => {
     setDraft({
-      ema20: config.ema20,
-      ema50: config.ema50,
-      ema200: config.ema200,
+      sma8: config.sma8,
+      sma20: config.sma20,
+      sma200: config.sma200,
       rsi: config.rsi,
       macdFast: config.macdFast,
       macdSlow: config.macdSlow,
@@ -96,9 +96,9 @@ function SettingsForm({ target, config, onSave, onReset }: FormProps) {
   }, [config, target]);
 
   function save() {
-    if (target === "ema20") onSave({ ema20: clamp(draft.ema20, 2, 500) });
-    else if (target === "ema50") onSave({ ema50: clamp(draft.ema50, 2, 500) });
-    else if (target === "ema200") onSave({ ema200: clamp(draft.ema200, 2, 500) });
+    if (target === "sma8") onSave({ sma8: clamp(draft.sma8, 2, 500) });
+    else if (target === "sma20") onSave({ sma20: clamp(draft.sma20, 2, 500) });
+    else if (target === "sma200") onSave({ sma200: clamp(draft.sma200, 2, 500) });
     else if (target === "rsi") onSave({ rsi: clamp(draft.rsi, 2, 100) });
     else if (target === "macd")
       onSave({
@@ -111,9 +111,9 @@ function SettingsForm({ target, config, onSave, onReset }: FormProps) {
 
   return (
     <div className="flex flex-col gap-3">
-      {(target === "ema20" || target === "ema50" || target === "ema200") && (
+      {(target === "sma8" || target === "sma20" || target === "sma200") && (
         <Field
-          label="Período"
+          label="Longitud"
           value={draft[target]}
           onChange={(n) => setDraft((d) => ({ ...d, [target]: n }))}
         />

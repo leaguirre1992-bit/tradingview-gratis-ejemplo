@@ -793,7 +793,7 @@ export function PriceChart({ symbol, timeframe }: Props) {
       <div ref={containerRef} className="h-full w-full" />
       {measureRender}
 
-      {/* Top-left of main pane: symbol info + OHLC + Volume pill + EMA pills */}
+      {/* Top-left of main pane: symbol info + OHLC + Volume pill + SMA pills */}
       <div
         style={{ top: (paneOffsets[0]?.top ?? 0) + 12, left: 12 }}
         className="pointer-events-none absolute z-10 flex flex-col gap-1 text-xs tabular-nums"
@@ -851,37 +851,37 @@ export function PriceChart({ symbol, timeframe }: Props) {
 
         {/* Indicator pills for the main pane (fixed position below price) */}
         <div className="mt-1 flex flex-col items-start gap-1">
-          {indicators.ema20 && (
+          {indicators.sma8 && (
             <IndicatorPill
-              name={`EMA ${config.ema20}`}
-              value={lastValues.ema20 !== undefined ? formatPrice(lastValues.ema20) : undefined}
-              color={INDICATOR_COLORS.ema20}
-              hidden={hidden.ema20}
-              onToggleHide={() => toggleHidden("ema20")}
-              onSettings={() => setSettingsTarget("ema20")}
-              onRemove={() => removeIndicator("ema20")}
+              name={`SMA ${config.sma8}`}
+              value={lastValues.sma8 !== undefined ? formatPrice(lastValues.sma8) : undefined}
+              color={INDICATOR_COLORS.sma8}
+              hidden={hidden.sma8}
+              onToggleHide={() => toggleHidden("sma8")}
+              onSettings={() => setSettingsTarget("sma8")}
+              onRemove={() => removeIndicator("sma8")}
             />
           )}
-          {indicators.ema50 && (
+          {indicators.sma20 && (
             <IndicatorPill
-              name={`EMA ${config.ema50}`}
-              value={lastValues.ema50 !== undefined ? formatPrice(lastValues.ema50) : undefined}
-              color={INDICATOR_COLORS.ema50}
-              hidden={hidden.ema50}
-              onToggleHide={() => toggleHidden("ema50")}
-              onSettings={() => setSettingsTarget("ema50")}
-              onRemove={() => removeIndicator("ema50")}
+              name={`SMA ${config.sma20}`}
+              value={lastValues.sma20 !== undefined ? formatPrice(lastValues.sma20) : undefined}
+              color={INDICATOR_COLORS.sma20}
+              hidden={hidden.sma20}
+              onToggleHide={() => toggleHidden("sma20")}
+              onSettings={() => setSettingsTarget("sma20")}
+              onRemove={() => removeIndicator("sma20")}
             />
           )}
-          {indicators.ema200 && (
+          {indicators.sma200 && (
             <IndicatorPill
-              name={`EMA ${config.ema200}`}
-              value={lastValues.ema200 !== undefined ? formatPrice(lastValues.ema200) : undefined}
-              color={INDICATOR_COLORS.ema200}
-              hidden={hidden.ema200}
-              onToggleHide={() => toggleHidden("ema200")}
-              onSettings={() => setSettingsTarget("ema200")}
-              onRemove={() => removeIndicator("ema200")}
+              name={`SMA ${config.sma200}`}
+              value={lastValues.sma200 !== undefined ? formatPrice(lastValues.sma200) : undefined}
+              color={INDICATOR_COLORS.sma200}
+              hidden={hidden.sma200}
+              onToggleHide={() => toggleHidden("sma200")}
+              onSettings={() => setSettingsTarget("sma200")}
+              onRemove={() => removeIndicator("sma200")}
             />
           )}
           {indicators.volume && (
