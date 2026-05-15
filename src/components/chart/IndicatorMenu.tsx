@@ -15,9 +15,9 @@ import { useChartStore, type IndicatorKey } from "@/lib/store/chart-store";
 interface Entry {
   key: IndicatorKey;
   label: (cfg: {
-    ema20: number;
-    ema50: number;
-    ema200: number;
+    sma8: number;
+    sma20: number;
+    sma200: number;
     rsi: number;
     macdFast: number;
     macdSlow: number;
@@ -27,9 +27,9 @@ interface Entry {
 }
 
 const ENTRIES: Entry[] = [
-  { key: "ema20", group: "Medias móviles", label: (c) => `EMA ${c.ema20}` },
-  { key: "ema50", group: "Medias móviles", label: (c) => `EMA ${c.ema50}` },
-  { key: "ema200", group: "Medias móviles", label: (c) => `EMA ${c.ema200}` },
+  { key: "sma8", group: "Medias móviles", label: (c) => `SMA ${c.sma8}` },
+  { key: "sma20", group: "Medias móviles", label: (c) => `SMA ${c.sma20}` },
+  { key: "sma200", group: "Medias móviles", label: (c) => `SMA ${c.sma200}` },
   { key: "volume", group: "Volumen", label: () => "Volumen" },
   { key: "rsi", group: "Osciladores", label: (c) => `RSI (${c.rsi})` },
   {

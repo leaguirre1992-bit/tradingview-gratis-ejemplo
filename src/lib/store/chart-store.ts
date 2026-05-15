@@ -5,9 +5,9 @@ import { persist } from "zustand/middleware";
 import type { Timeframe } from "@/lib/binance/types";
 
 export type IndicatorKey =
-  | "ema20"
-  | "ema50"
-  | "ema200"
+  | "sma8"
+  | "sma20"
+  | "sma200"
   | "rsi"
   | "macd"
   | "volume";
@@ -21,9 +21,9 @@ export interface PriceLine {
 }
 
 export interface IndicatorConfig {
-  ema20: number;
-  ema50: number;
-  ema200: number;
+  sma8: number;
+  sma20: number;
+  sma200: number;
   rsi: number;
   macdFast: number;
   macdSlow: number;
@@ -31,9 +31,9 @@ export interface IndicatorConfig {
 }
 
 export const DEFAULT_CONFIG: IndicatorConfig = {
-  ema20: 20,
-  ema50: 50,
-  ema200: 200,
+  sma8: 8,
+  sma20: 20,
+  sma200: 200,
   rsi: 14,
   macdFast: 12,
   macdSlow: 26,
@@ -41,25 +41,34 @@ export const DEFAULT_CONFIG: IndicatorConfig = {
 };
 
 export const INDICATOR_COLORS: Record<IndicatorKey, string> = {
-  ema20: "#ffb74d",
-  ema50: "#2962ff",
-  ema200: "#ab47bc",
+  sma8: "#26a69a",
+  sma20: "#2962ff",
+  sma200: "#ef5350",
   rsi: "#ab47bc",
   macd: "#2962ff",
   volume: "#787b86",
 };
 
 export const DEFAULT_WATCHLIST = [
-  "BTCUSDT",
-  "ETHUSDT",
-  "SOLUSDT",
-  "BNBUSDT",
-  "XRPUSDT",
-  "DOGEUSDT",
-  "ADAUSDT",
-  "AVAXUSDT",
-  "LINKUSDT",
-  "MATICUSDT",
+  "AAPL",
+  "AAPU",
+  "AMZN",
+  "AMZU",
+  "AMDL",
+  "NKE",
+  "NFLX",
+  "UBER",
+  "HOOD",
+  "CSCO",
+  "NVDA",
+  "NVDL",
+  "DIS",
+  "VZ",
+  "MSTR",
+  "COIN",
+  "STRC",
+  "XOM",
+  "BTCUSDT"
 ];
 
 interface ChartState {
@@ -99,20 +108,20 @@ interface ChartState {
 export const useChartStore = create<ChartState>()(
   persist(
     (set) => ({
-      symbol: "BTCUSDT",
+      symbol: "AAPL",
       timeframe: "15m" as Timeframe,
       indicators: {
-        ema20: true,
-        ema50: true,
-        ema200: false,
+        sma8: true,
+        sma20: true,
+        sma200: false,
         rsi: true,
         macd: false,
         volume: true,
       },
       hidden: {
-        ema20: false,
-        ema50: false,
-        ema200: false,
+        sma8: false,
+        sma20: false,
+        sma200: false,
         rsi: false,
         macd: false,
         volume: false,

@@ -13,8 +13,9 @@ import {
   type UTCTimestamp,
 } from "lightweight-charts";
 import { fetchKlines } from "@/lib/binance/rest";
+import { fetchPolygonKlines } from "@/lib/polygon/rest";
 import { getBinanceWS } from "@/lib/binance/ws";
-import { ema, rsi, macd } from "@/lib/indicators";
+import { sma, rsi, macd } from "@/lib/indicators";
 import type { Candle, Timeframe } from "@/lib/binance/types";
 import {
   INDICATOR_COLORS,
@@ -76,9 +77,9 @@ interface HoverInfo {
 }
 
 interface LastValues {
-  ema20?: number;
-  ema50?: number;
-  ema200?: number;
+  sma8?: number;
+  sma20?: number;
+  sma200?: number;
   rsi?: number;
   macd?: number;
   macdSignal?: number;
@@ -96,9 +97,9 @@ export function PriceChart({ symbol, timeframe }: Props) {
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
-  const ema20Ref = useRef<ISeriesApi<"Line"> | null>(null);
-  const ema50Ref = useRef<ISeriesApi<"Line"> | null>(null);
-  const ema200Ref = useRef<ISeriesApi<"Line"> | null>(null);
+  const sma8Ref = useRef<ISeriesApi<"Line"> | null>(null);
+  const sma20Ref = useRef<ISeriesApi<"Line"> | null>(null);
+  const sma200Ref = useRef<ISeriesApi<"Line"> | null>(null);
   const rsiRef = useRef<ISeriesApi<"Line"> | null>(null);
   const rsi30Ref = useRef<ISeriesApi<"Line"> | null>(null);
   const rsi70Ref = useRef<ISeriesApi<"Line"> | null>(null);
@@ -198,20 +199,20 @@ export function PriceChart({ symbol, timeframe }: Props) {
       priceLineStyle: 2,
     });
 
-    ema20Ref.current = chart.addSeries(LineSeries, {
-      color: INDICATOR_COLORS.ema20,
+    sma8Ref.current = chart.addSeries(LineSeries, {
+      color: INDICATOR_COLORS.sma8,
       lineWidth: 1,
       priceLineVisible: false,
       lastValueVisible: false,
     });
-    ema50Ref.current = chart.addSeries(LineSeries, {
-      color: INDICATOR_COLORS.ema50,
+    sma20Ref.current = chart.addSeries(LineSeries, {
+      color: INDICATOR_COLORS.sma20,
       lineWidth: 1,
       priceLineVisible: false,
       lastValueVisible: false,
     });
-    ema200Ref.current = chart.addSeries(LineSeries, {
-      color: INDICATOR_COLORS.ema200,
+    sma200Ref.current = chart.addSeries(LineSeries, {
+      color: INDICATOR_COLORS.sma200,
       lineWidth: 2,
       priceLineVisible: false,
       lastValueVisible: false,
@@ -319,9 +320,9 @@ export function PriceChart({ symbol, timeframe }: Props) {
       candleSeriesRef.current = null;
       volumeSeriesRef.current = null;
       priceLinesMapRef.current.clear();
-      ema20Ref.current = null;
-      ema50Ref.current = null;
-      ema200Ref.current = null;
+      sma8Ref.current = null;
+      sma20Ref.current = null;
+      sma200Ref.current = null;
       rsiRef.current = null;
       rsi30Ref.current = null;
       rsi70Ref.current = null;
@@ -471,9 +472,9 @@ export function PriceChart({ symbol, timeframe }: Props) {
   // Visibility — eye toggle (hidden state) + enabled state combined
   useEffect(() => {
     const v = (key: IndicatorKey) => indicators[key] && !hidden[key];
-    ema20Ref.current?.applyOptions({ visible: v("ema20") });
-    ema50Ref.current?.applyOptions({ visible: v("ema50") });
-    ema200Ref.current?.applyOptions({ visible: v("ema200") });
+    sma8Ref.current?.applyOptions({ visible: v("sma8") });
+    sma20Ref.current?.applyOptions({ visible: v("sma20") });
+    sma200Ref.current?.applyOptions({ visible: v("sma200") });
     if (rsiRef.current) rsiRef.current.applyOptions({ visible: v("rsi") });
     if (rsi30Ref.current) rsi30Ref.current.applyOptions({ visible: v("rsi") });
     if (rsi70Ref.current) rsi70Ref.current.applyOptions({ visible: v("rsi") });
@@ -485,8 +486,8 @@ export function PriceChart({ symbol, timeframe }: Props) {
 
   // Recompute indicators when config changes (periods)
   useEffect(() => {
-    updateEMAs();
-  }, [config.ema20, config.ema50, config.ema200]);
+    updateSMAs();
+  }, [config.sma8, config.sma20, config.sma200]);
 
   useEffect(() => {
     updateRSI();
@@ -536,31 +537,31 @@ export function PriceChart({ symbol, timeframe }: Props) {
     if (tool !== "measure") setMeasure(INITIAL_MEASURE);
   }, [tool]);
 
-  function updateEMAs() {
+  function updateSMAs() {
     const c = candlesRef.current;
     if (c.length === 0) return;
     const cfg = configRef.current;
+    let last8: number | undefined;
     let last20: number | undefined;
-    let last50: number | undefined;
     let last200: number | undefined;
 
-    if (ema20Ref.current) {
-      const data = ema(c, cfg.ema20);
-      ema20Ref.current.setData(
+    if (sma8Ref.current) {
+      const data = sma(c, cfg.sma8);
+      sma8Ref.current.setData(
+        data.map((p) => ({ time: p.time as UTCTimestamp, value: p.value })),
+      );
+      last8 = data.at(-1)?.value;
+    }
+    if (sma20Ref.current) {
+      const data = sma(c, cfg.sma20);
+      sma20Ref.current.setData(
         data.map((p) => ({ time: p.time as UTCTimestamp, value: p.value })),
       );
       last20 = data.at(-1)?.value;
     }
-    if (ema50Ref.current) {
-      const data = ema(c, cfg.ema50);
-      ema50Ref.current.setData(
-        data.map((p) => ({ time: p.time as UTCTimestamp, value: p.value })),
-      );
-      last50 = data.at(-1)?.value;
-    }
-    if (ema200Ref.current) {
-      const data = ema(c, cfg.ema200);
-      ema200Ref.current.setData(
+    if (sma200Ref.current) {
+      const data = sma(c, cfg.sma200);
+      sma200Ref.current.setData(
         data.map((p) => ({ time: p.time as UTCTimestamp, value: p.value })),
       );
       last200 = data.at(-1)?.value;
@@ -568,9 +569,9 @@ export function PriceChart({ symbol, timeframe }: Props) {
     const lastVol = c.at(-1)?.volume;
     setLastValues((prev) => ({
       ...prev,
-      ema20: last20,
-      ema50: last50,
-      ema200: last200,
+      sma8: last8,
+      sma20: last20,
+      sma200: last200,
       volume: lastVol,
     }));
   }
@@ -631,7 +632,11 @@ export function PriceChart({ symbol, timeframe }: Props) {
 
     async function load() {
       try {
-        const klines = await fetchKlines(symbol, timeframe, 1000);
+        const isCrypto = symbol.endsWith("USDT");
+        const klines = isCrypto 
+          ? await fetchKlines(symbol, timeframe, 1000)
+          : await fetchPolygonKlines(symbol, timeframe, 1000);
+          
         if (cancelled) return;
         candlesRef.current = klines;
         if (candleSeriesRef.current) {
@@ -654,7 +659,7 @@ export function PriceChart({ symbol, timeframe }: Props) {
             })),
           );
         }
-        updateEMAs();
+        updateSMAs();
         updateRSI();
         updateMACD();
         chartRef.current?.timeScale().fitContent();
@@ -669,46 +674,49 @@ export function PriceChart({ symbol, timeframe }: Props) {
           });
         }
 
-        const ws = getBinanceWS();
-        unsub = ws.subscribeKline({
-          symbol,
-          interval: timeframe,
-          onCandle: (k) => {
-            if (!candleSeriesRef.current) return;
-            const arr = candlesRef.current;
-            const lastCandle = arr[arr.length - 1];
-            if (lastCandle && lastCandle.time === k.time) {
-              arr[arr.length - 1] = k;
-            } else if (!lastCandle || k.time > lastCandle.time) {
-              arr.push(k);
-              if (arr.length > 2000) arr.shift();
-            } else {
-              return;
-            }
-            candleSeriesRef.current.update({
-              time: k.time as UTCTimestamp,
-              open: k.open,
-              high: k.high,
-              low: k.low,
-              close: k.close,
-            });
-            if (volumeSeriesRef.current) {
-              volumeSeriesRef.current.update({
+        // Only subscribe to WS if it's a crypto symbol
+        if (isCrypto) {
+          const ws = getBinanceWS();
+          unsub = ws.subscribeKline({
+            symbol,
+            interval: timeframe,
+            onCandle: (k) => {
+              if (!candleSeriesRef.current) return;
+              const arr = candlesRef.current;
+              const lastCandle = arr[arr.length - 1];
+              if (lastCandle && lastCandle.time === k.time) {
+                arr[arr.length - 1] = k;
+              } else if (!lastCandle || k.time > lastCandle.time) {
+                arr.push(k);
+                if (arr.length > 2000) arr.shift();
+              } else {
+                return;
+              }
+              candleSeriesRef.current.update({
                 time: k.time as UTCTimestamp,
-                value: k.volume,
-                color: k.close >= k.open ? `${TV_COLORS.green}66` : `${TV_COLORS.red}66`,
+                open: k.open,
+                high: k.high,
+                low: k.low,
+                close: k.close,
               });
-            }
-            updateEMAs();
-            updateRSI();
-            updateMACD();
-            const prev = arr[arr.length - 2] ?? lastCandle;
-            setLastPrice({
-              value: k.close,
-              pct: prev && prev.close !== 0 ? ((k.close - prev.close) / prev.close) * 100 : 0,
-            });
-          },
-        });
+              if (volumeSeriesRef.current) {
+                volumeSeriesRef.current.update({
+                  time: k.time as UTCTimestamp,
+                  value: k.volume,
+                  color: k.close >= k.open ? `${TV_COLORS.green}66` : `${TV_COLORS.red}66`,
+                });
+              }
+              updateSMAs();
+              updateRSI();
+              updateMACD();
+              const prev = arr[arr.length - 2] ?? lastCandle;
+              setLastPrice({
+                value: k.close,
+                pct: prev && prev.close !== 0 ? ((k.close - prev.close) / prev.close) * 100 : 0,
+              });
+            },
+          });
+        }
       } catch (e) {
         console.error("Failed to load chart data:", e);
       }

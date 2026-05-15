@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Search, ChevronDown } from "lucide-react";
 import {
   Dialog,
@@ -11,10 +11,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { fetchExchangeSymbols } from "@/lib/binance/rest";
-import { useChartStore } from "@/lib/store/chart-store";
+import { useChartStore, DEFAULT_WATCHLIST } from "@/lib/store/chart-store";
 import { cn } from "@/lib/utils";
-import type { SymbolInfo } from "@/lib/binance/types";
 
 export function SymbolSelector() {
   const symbol = useChartStore((s) => s.symbol);
@@ -24,26 +22,12 @@ export function SymbolSelector() {
   const setOpen = useChartStore((s) => s.setSymbolDialogOpen);
 
   const [query, setQuery] = useState("");
-  const [allSymbols, setAllSymbols] = useState<SymbolInfo[]>([]);
-
-  useEffect(() => {
-    if (open && allSymbols.length === 0) {
-      fetchExchangeSymbols().then(setAllSymbols).catch(console.error);
-    }
-  }, [open, allSymbols.length]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toUpperCase();
-    if (!q) return allSymbols.slice(0, 100);
-    return allSymbols
-      .filter(
-        (s) =>
-          s.symbol.includes(q) ||
-          s.baseAsset.includes(q) ||
-          s.quoteAsset.includes(q),
-      )
-      .slice(0, 100);
-  }, [query, allSymbols]);
+    if (!q) return DEFAULT_WATCHLIST;
+    return DEFAULT_WATCHLIST.filter((s) => s.includes(q));
+  }, [query]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -74,23 +58,21 @@ export function SymbolSelector() {
             )}
             {filtered.map((s) => (
               <button
-                key={s.symbol}
+                key={s}
                 onClick={() => {
-                  setSymbol(s.symbol);
-                  addToWatchlist(s.symbol);
+                  setSymbol(s);
+                  addToWatchlist(s);
                   setOpen(false);
                   setQuery("");
                 }}
                 className={cn(
                   "flex items-center justify-between border-b border-tv-border px-4 py-2 text-left text-xs hover:bg-tv-panel-hover",
-                  s.symbol === symbol && "bg-tv-panel-hover",
+                  s === symbol && "bg-tv-panel-hover",
                 )}
               >
                 <div className="flex items-center gap-3">
-                  <span className="font-semibold text-tv-text">{s.baseAsset}</span>
-                  <span className="text-tv-text-muted">/ {s.quoteAsset}</span>
+                  <span className="font-semibold text-tv-text">{s}</span>
                 </div>
-                <span className="text-tv-text-muted">{s.symbol}</span>
               </button>
             ))}
           </div>
