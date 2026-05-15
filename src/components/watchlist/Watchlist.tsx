@@ -28,23 +28,29 @@ export function Watchlist() {
     if (watchlist.length === 0) return;
     let cancelled = false;
 
-    fetchTickers24h(watchlist)
-      .then((tickers) => {
-        if (cancelled) return;
-        const map: Record<string, Row> = {};
-        tickers.forEach((t) => {
-          map[t.symbol] = {
-            symbol: t.symbol,
-            price: t.lastPrice,
-            pct: t.priceChangePercent,
-          };
-        });
-        setRows(map);
-      })
-      .catch(console.error);
+    const cryptoWatchlist = watchlist.filter((s) => s.endsWith("USDT"));
+    
+    if (cryptoWatchlist.length > 0) {
+      fetchTickers24h(cryptoWatchlist)
+        .then((tickers) => {
+          if (cancelled) return;
+          const map: Record<string, Row> = {};
+          tickers.forEach((t) => {
+            map[t.symbol] = {
+              symbol: t.symbol,
+              price: t.lastPrice,
+              pct: t.priceChangePercent,
+            };
+          });
+          setRows((prev) => ({ ...prev, ...map }));
+        })
+        .catch(console.error);
+    }
 
     const ws = getBinanceWS();
-    const unsub = ws.subscribeMiniTickers(watchlist, (tick) => {
+    let unsub = () => {};
+    if (cryptoWatchlist.length > 0) {
+      unsub = ws.subscribeMiniTickers(cryptoWatchlist, (tick) => {
       setRows((prev) => {
         const prevRow = prev[tick.symbol];
         if (prevRow) {
@@ -74,6 +80,7 @@ export function Watchlist() {
         };
       });
     });
+    }
 
     return () => {
       cancelled = true;

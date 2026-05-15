@@ -18,11 +18,15 @@ export function mapTimeframeToPolygon(timeframe: Timeframe): { multiplier: numbe
   }
 }
 
+// Simple in-memory cache to avoid rate limit (5 calls/min on free tier)
+const cache = new Map<string, Candle[]>();
+
 export async function fetchPolygonKlines(
   symbol: string,
   interval: Timeframe,
   limit = 50000
 ): Promise<Candle[]> {
+  const cacheKey = `${symbol}_${interval}`;
   const { multiplier, timespan } = mapTimeframeToPolygon(interval);
   
   // Calculate from and to dates
@@ -36,14 +40,21 @@ export async function fetchPolygonKlines(
   // Use sort=desc to get the MOST RECENT candles up to the limit
   const url = `https://api.polygon.io/v2/aggs/ticker/${symbol}/range/${multiplier}/${timespan}/${from}/${to}?adjusted=true&sort=desc&limit=${limit}&apiKey=${POLYGON_API_KEY}`;
   
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) {
-    console.error("Polygon error:", await res.text());
-    throw new Error(`Polygon klines ${res.status}`);
-  }
-  
-  const data = await res.json();
-  if (!data.results) return [];
+  try {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) {
+      console.error("Polygon error:", await res.text());
+      if (res.status === 429) {
+        console.warn("Polygon API rate limit exceeded. Using cached data if available.");
+        return cache.get(cacheKey) || [];
+      }
+      throw new Error(`Polygon klines ${res.status}`);
+    }
+    
+    const data = await res.json();
+    if (!data.results) {
+      return cache.get(cacheKey) || [];
+    }
   
   // The results come sorted desc (newest first). We need to reverse them back for the chart.
   const reversed = [...data.results].reverse();
@@ -68,20 +79,28 @@ export async function fetchPolygonKlines(
   }));
 
   if (timespan === "day" || timespan === "week") {
+    cache.set(cacheKey, parsed);
     return parsed;
   }
 
-  // Filter intraday candles to keep only Regular Trading Hours (RTH: 09:30 - 15:59 NY time)
-  return parsed.filter((candle) => {
-    const parts = nyFormatter.formatToParts(new Date(candle._rawMs));
-    const hourStr = parts.find((p) => p.type === "hour")?.value;
-    const minStr = parts.find((p) => p.type === "minute")?.value;
-    if (!hourStr || !minStr) return true;
-    
-    const hour = parseInt(hourStr, 10);
-    const min = parseInt(minStr, 10);
-    const timeNum = hour * 100 + min; // e.g. 9:30 -> 930
-    
-    return timeNum >= 930 && timeNum < 1600;
-  });
+    // Filter intraday candles to keep only Regular Trading Hours (RTH: 09:30 - 15:59 NY time)
+    const finalData = parsed.filter((candle) => {
+      const parts = nyFormatter.formatToParts(new Date(candle._rawMs));
+      const hourStr = parts.find((p) => p.type === "hour")?.value;
+      const minStr = parts.find((p) => p.type === "minute")?.value;
+      if (!hourStr || !minStr) return true;
+      
+      const hour = parseInt(hourStr, 10);
+      const min = parseInt(minStr, 10);
+      const timeNum = hour * 100 + min; // e.g. 9:30 -> 930
+      
+      return timeNum >= 930 && timeNum < 1600;
+    });
+
+    cache.set(cacheKey, finalData);
+    return finalData;
+  } catch (err) {
+    console.warn("Polygon API error/timeout. Returning cached data if available.", err);
+    return cache.get(cacheKey) || [];
+  }
 }
