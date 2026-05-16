@@ -10,7 +10,8 @@ export type IndicatorKey =
   | "sma200"
   | "rsi"
   | "macd"
-  | "volume";
+  | "volume"
+  | "fantastic4"; // ← NEW
 
 export type DrawingTool = "cursor" | "hline" | "measure" | "eraser";
 
@@ -47,6 +48,7 @@ export const INDICATOR_COLORS: Record<IndicatorKey, string> = {
   rsi: "#ab47bc",
   macd: "#2962ff",
   volume: "#787b86",
+  fantastic4: "#ffb74d", // ← NEW — golden/amber label color
 };
 
 export const DEFAULT_WATCHLIST = [
@@ -117,6 +119,7 @@ export const useChartStore = create<ChartState>()(
         rsi: true,
         macd: false,
         volume: true,
+        fantastic4: false, // ← NEW — off by default
       },
       hidden: {
         sma8: false,
@@ -125,6 +128,7 @@ export const useChartStore = create<ChartState>()(
         rsi: false,
         macd: false,
         volume: false,
+        fantastic4: false, // ← NEW
       },
       config: { ...DEFAULT_CONFIG },
       watchlist: DEFAULT_WATCHLIST,

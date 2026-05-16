@@ -27,16 +27,18 @@ interface Entry {
 }
 
 const ENTRIES: Entry[] = [
-  { key: "sma8", group: "Medias móviles", label: (c) => `SMA ${c.sma8}` },
-  { key: "sma20", group: "Medias móviles", label: (c) => `SMA ${c.sma20}` },
-  { key: "sma200", group: "Medias móviles", label: (c) => `SMA ${c.sma200}` },
-  { key: "volume", group: "Volumen", label: () => "Volumen" },
-  { key: "rsi", group: "Osciladores", label: (c) => `RSI (${c.rsi})` },
+  { key: "sma8",       group: "Medias móviles", label: (c) => `SMA ${c.sma8}` },
+  { key: "sma20",      group: "Medias móviles", label: (c) => `SMA ${c.sma20}` },
+  { key: "sma200",     group: "Medias móviles", label: (c) => `SMA ${c.sma200}` },
+  { key: "volume",     group: "Volumen",         label: () => "Volumen" },
+  { key: "rsi",        group: "Osciladores",     label: (c) => `RSI (${c.rsi})` },
   {
     key: "macd",
     group: "Osciladores",
     label: (c) => `MACD (${c.macdFast}, ${c.macdSlow}, ${c.macdSignal})`,
   },
+  // ─── NEW ────────────────────────────────────────────────────────────────────
+  { key: "fantastic4", group: "4 Fantásticos",   label: () => "4 Fantásticos (30 min cierre)" },
 ];
 
 export function IndicatorMenu() {

@@ -25,6 +25,7 @@ import {
 import { formatPrice, formatVolume } from "@/lib/format";
 import { IndicatorPill } from "./IndicatorPill";
 import { MeasureOverlay } from "./MeasureOverlay";
+import { Fantastic4Overlay } from "./Fantastic4Overlay"; // ← NEW
 
 interface MeasurePoint {
   time: number;
@@ -135,6 +136,8 @@ export function PriceChart({ symbol, timeframe }: Props) {
   const [paneOffsets, setPaneOffsets] = useState<PaneOffset[]>([]);
   const [measure, setMeasure] = useState<MeasureState>(INITIAL_MEASURE);
   const [renderTick, setRenderTick] = useState(0);
+  // ← NEW: expose candles array to React so Fantastic4Overlay re-renders on load
+  const [candlesTick, setCandlesTick] = useState(0);
   const measureRef = useRef(measure);
   measureRef.current = measure;
 
@@ -690,6 +693,7 @@ export function PriceChart({ symbol, timeframe }: Props) {
         chartRef.current?.timeScale().fitContent();
         candleSeriesRef.current?.priceScale().applyOptions({ autoScale: true });
         requestAnimationFrame(() => recomputePaneOffsets());
+        setCandlesTick((t) => t + 1); // ← NEW: signal candles are ready
 
         if (klines.length > 0) {
           const last = klines[klines.length - 1];
@@ -818,6 +822,17 @@ export function PriceChart({ symbol, timeframe }: Props) {
     <div className="relative h-full w-full">
       <div ref={containerRef} className="h-full w-full" />
       {measureRender}
+
+      {/* ─── 4 Fantásticos overlay ─────────────────────────────────────────── */}
+      {/* candlesTick + renderTick ensure repaint on load and on pan/zoom */}
+      {candlesTick > 0 && (
+        <Fantastic4Overlay
+          candles={candlesRef.current}
+          chart={chartRef.current}
+          candleSeries={candleSeriesRef.current}
+          enabled={indicators.fantastic4 && !hidden.fantastic4}
+        />
+      )}
 
       {/* Top-left of main pane: symbol info + OHLC + Volume pill + SMA pills */}
       <div
