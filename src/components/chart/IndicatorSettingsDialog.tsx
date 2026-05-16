@@ -22,6 +22,7 @@ const TITLES: Record<IndicatorKey, string> = {
   rsi: "RSI",
   macd: "MACD",
   volume: "Volumen",
+  fantastic4: "4 Fantásticos", // ← NEW
 };
 
 export function IndicatorSettingsDialog() {
@@ -107,6 +108,7 @@ function SettingsForm({ target, config, onSave, onReset }: FormProps) {
         macdSignal: clamp(draft.macdSignal, 2, 100),
       });
     else if (target === "volume") onSave({});
+    else if (target === "fantastic4") onSave({}); // ← NEW — no configurable params
   }
 
   return (
@@ -148,6 +150,12 @@ function SettingsForm({ target, config, onSave, onReset }: FormProps) {
         <p className="text-xs text-tv-text-muted">
           El indicador de volumen no tiene parámetros configurables en esta
           versión.
+        </p>
+      )}
+      {target === "fantastic4" && (
+        <p className="text-xs text-tv-text-muted">
+          Clasifica los últimos 30 min del día anterior en: Estrecho, Contraído,
+          Normal, Amplio o 3F Contraídos. No tiene parámetros configurables.
         </p>
       )}
 
