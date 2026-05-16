@@ -55,14 +55,6 @@ function getNYDateStr(unixSec: number): string {
 
 // ─── EB size calculation ──────────────────────────────────────────────────────
 
-/**
- * Minimum EB size in dollars based on stock price.
- * Precio Accion   Tamaño mínimo EB
- * < $50           $0.20
- * $50–$100        $0.30
- * $100–$150       $0.40
- * ≥ $150          $0.50
- */
 function getMinEB(price: number): number {
   if (price < 50)  return 0.20;
   if (price < 100) return 0.30;
@@ -70,14 +62,7 @@ function getMinEB(price: number): number {
   return 0.50;
 }
 
-/**
- * Calculate the EB (Elefante Bar) size for a window of 20 candles.
- * EB = max(minEB from table, 2 × average body size of the 20 candles)
- *
- * The 20 candles = the 15 candles of the 4F window + 5 candles immediately before.
- */
 function calcEB(window4F: Candle[], allDayCandles: Candle[]): number {
-  // Get the 5 candles immediately before the 4F window
   const windowStart = window4F[0].time;
   const before = allDayCandles
     .filter((c) => c.time < windowStart)
@@ -85,52 +70,85 @@ function calcEB(window4F: Candle[], allDayCandles: Candle[]): number {
 
   const last20 = [...before, ...window4F].slice(-20);
 
-  // Average body size of these candles
   const avgBody =
     last20.reduce((sum, c) => sum + Math.abs(c.close - c.open), 0) / last20.length;
 
-  // Reference price: close of the last candle in the window
   const refPrice = window4F[window4F.length - 1].close;
   const minEB = getMinEB(refPrice);
 
-  // EB = max(table minimum, 2× average body)
   return Math.max(minEB, 2 * avgBody);
+}
+
+// ─── Overlap calculation ──────────────────────────────────────────────────────
+
+/**
+ * Calculates the average body overlap ratio between consecutive candles.
+ *
+ * For each pair of consecutive candles A and B:
+ *   overlapSize  = max(0, min(highA, highB) - max(lowA, lowB))
+ *   smallerBody  = min(bodySize(A), bodySize(B))
+ *   ratio        = overlapSize / smallerBody   (capped at 1.0)
+ *
+ * Returns the average ratio across all pairs. A value ≥ 0.5 means
+ * most consecutive candles overlap by at least 50% of the smaller body.
+ * Returns 1.0 if there's only one candle (trivially overlapping).
+ */
+function avgBodyOverlap(candles: Candle[]): number {
+  if (candles.length < 2) return 1.0;
+
+  let totalRatio = 0;
+  let pairs = 0;
+
+  for (let i = 1; i < candles.length; i++) {
+    const a = candles[i - 1];
+    const b = candles[i];
+
+    const aHigh = Math.max(a.open, a.close);
+    const aLow  = Math.min(a.open, a.close);
+    const bHigh = Math.max(b.open, b.close);
+    const bLow  = Math.min(b.open, b.close);
+
+    const overlapSize = Math.max(0, Math.min(aHigh, bHigh) - Math.max(aLow, bLow));
+    const aBody = aHigh - aLow;
+    const bBody = bHigh - bLow;
+    const smallerBody = Math.min(aBody, bBody);
+
+    // If both bodies are flat (doji), treat as fully overlapping
+    const ratio = smallerBody < 0.0001 ? 1.0 : Math.min(1.0, overlapSize / smallerBody);
+    totalRatio += ratio;
+    pairs++;
+  }
+
+  return pairs > 0 ? totalRatio / pairs : 1.0;
 }
 
 // ─── Classification ───────────────────────────────────────────────────────────
 //
-// Based on the 4F rectangle range measured in EB units:
+// Thresholds in EB units:
+//   Estrecho     : range < 1.5 EB  AND  (overlap ≥ 50%  OR  range < 1 EB)
+//   Contraído    : range < 2.0 EB
+//   Normal       : range < 4.0 EB
+//   Amplio       : range ≥ 4.0 EB
 //
-//   Estrecho     : range < 0.5 × EB  (smaller than a Normal bar)
-//   Contraído    : range < 1.0 × EB  (up to one EB)
-//   Normal       : range < 2.0 × EB  (between EB and Dual)
-//   Amplio       : range ≥ 2.0 × EB  (Dual or bigger, i.e. 3+ EBs in the box)
-//
-// Scale reminder:
-//   Pequeña  ≈ 0.25× EB
-//   Normal   ≈ 0.50× EB
-//   EB       = 1.00× EB
-//   EB+      ≈ 1.50× EB
-//   Dual     = 2.00× EB
-//   Violencia ≥ 3.00× EB
-//
-// 3F Contraído is a special case checked separately (SMA200 far, price+SMA20 tight):
-//   fullBox uses SMA200 and is ≥ 0.85% of price,
-//   but priceBox (only price bodies + SMA20) classifies as Estrecho or Contraído.
+// 3F Contraído (special case, checked first):
+//   fullBoxPct ≥ 0.85%  AND  priceBoxPct < 0.45%
+//   (SMA200 far away, but price + SMA20 are tight)
 
 function classifyByEB(
   rectRange: number,
   eb: number,
   fullBoxPct: number,
   priceBoxPct: number,
+  overlapRatio: number,
 ): F4Box["state"] {
-  // 3F Contraído: SMA200 is far away (big fullBox) but price+SMA20 are tight
+  // 3F Contraído: SMA200 far, price+SMA20 tight
   if (fullBoxPct >= 0.85 && priceBoxPct < 0.45) return "3f_contraido";
 
   const ratio = rectRange / eb;
-  if (ratio < 1.5)  return "estrecho";
-  if (ratio < 2.0)  return "contraido";
-  if (ratio < 4.0)  return "normal";
+
+  if (ratio < 1.5) return "estrecho";
+  if (ratio < 2.0) return "contraido";
+  if (ratio < 4.0) return "normal";
   return "amplio";
 }
 
@@ -171,9 +189,9 @@ export function computeF4Boxes(candles: Candle[]): F4Box[] {
 
     // ── Price range: only candle BODIES (no wicks) ──
     let priceHigh = -Infinity;
-    let priceLow = Infinity;
+    let priceLow  =  Infinity;
     let sma20High = -Infinity;
-    let sma20Low = Infinity;
+    let sma20Low  =  Infinity;
     let sma200Val: number | null = null;
 
     for (const c of window) {
@@ -216,15 +234,14 @@ export function computeF4Boxes(candles: Candle[]): F4Box[] {
     const fbMid = (fbTop + fbBot) / 2;
     const fullBoxPct = fbMid > 0 ? ((fbTop - fbBot) / fbMid) * 100 : 0;
 
-    // ── EB size for this day ──
-    const eb = calcEB(window, dayCandlesAll);
+    // ── EB and overlap ──
+    const eb          = calcEB(window, dayCandlesAll);
+    const overlapRatio = avgBodyOverlap(window);
+    const fullRange   = fbTop - fbBot;
 
-    // ── Classify ──
-    // rectRange uses the full box range (including SMA200) unless 3F Contraído
-    const fullRange  = fbTop - fbBot;
-    const state = classifyByEB(fullRange, eb, fullBoxPct, priceBoxPct);
+    const state = classifyByEB(fullRange, eb, fullBoxPct, priceBoxPct, overlapRatio);
 
-    // 3F Contraído: draw only price box (SMA200 is visually outside)
+    // 3F Contraído: draw only price box (SMA200 visually outside)
     const rectTop = state === "3f_contraido" ? pbTop : fbTop;
     const rectBot = state === "3f_contraido" ? pbBot : fbBot;
 
