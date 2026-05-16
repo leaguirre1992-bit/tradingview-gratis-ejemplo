@@ -30,12 +30,25 @@ export async function fetchPolygonKlines(
   const { multiplier, timespan } = mapTimeframeToPolygon(interval);
   
   // Calculate from and to dates
-  const to = Date.now();
+  // We MUST align the 'from' timestamp to a clean hour/day boundary (00:00:00 UTC) 
+  // so that Polygon's 2m, 5m, 10m, 15m buckets align perfectly with standard market hours (e.g. 09:30, 09:35).
+  const now = new Date();
+  now.setUTCHours(23, 59, 59, 999);
+  const to = now.getTime();
+  
   // We'll ask for up to 1 year for intraday, 5 years for daily/weekly
   const msPerYear = 365 * 24 * 60 * 60 * 1000;
-  const from = timespan === "day" || timespan === "week" 
-    ? to - (msPerYear * 5) 
-    : to - msPerYear;
+  
+  let from: number;
+  if (timespan === "day" || timespan === "week") {
+    from = to - (msPerYear * 5);
+  } else {
+    from = to - msPerYear;
+  }
+  // Truncate 'from' to exactly 00:00:00 UTC to force alignment
+  const fromDate = new Date(from);
+  fromDate.setUTCHours(0, 0, 0, 0);
+  from = fromDate.getTime();
 
   // Use sort=desc to get the MOST RECENT candles up to the limit
   const url = `https://api.polygon.io/v2/aggs/ticker/${symbol}/range/${multiplier}/${timespan}/${from}/${to}?adjusted=true&sort=desc&limit=${limit}&apiKey=${POLYGON_API_KEY}`;
