@@ -128,9 +128,9 @@ function classifyByEB(
   if (fullBoxPct >= 0.85 && priceBoxPct < 0.45) return "3f_contraido";
 
   const ratio = rectRange / eb;
-  if (ratio < 0.5)  return "estrecho";
-  if (ratio < 1.0)  return "contraido";
-  if (ratio < 2.0)  return "normal";
+  if (ratio < 1.0)  return "estrecho";
+  if (ratio < 1.5)  return "contraido";
+  if (ratio < 3.0)  return "normal";
   return "amplio";
 }
 
