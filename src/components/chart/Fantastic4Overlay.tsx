@@ -122,7 +122,42 @@ function avgBodyOverlap(candles: Candle[]): number {
   return pairs > 0 ? totalRatio / pairs : 1.0;
 }
 
-// ─── Classification ───────────────────────────────────────────────────────────
+// ─── SMA20 angle calculation ──────────────────────────────────────────────────
+
+/**
+ * Estimates the angle of the SMA20 over the 4F window in degrees.
+ * Uses the first and last SMA20 values in the window to compute the slope,
+ * normalized by the price level so it's comparable across different stocks.
+ *
+ * We convert the price slope to an angle using:
+ *   angle = atan(Δprice% / Δtime%) → in degrees
+ *
+ * In practice we compare price change as % of price over the number of candles,
+ * then scale to degrees. A flat SMA will give ~0°, a strong trend ~30–45°+.
+ */
+function calcSMA20AngleDeg(window4F: Candle[], sma20Map: Map<number, number>): number {
+  // Collect SMA20 values for the window candles
+  const vals: number[] = [];
+  for (const c of window4F) {
+    const v = sma20Map.get(c.time);
+    if (v !== undefined) vals.push(v);
+  }
+  if (vals.length < 2) return 0;
+
+  const first = vals[0];
+  const last  = vals[vals.length - 1];
+  const n     = vals.length;
+
+  // % change per candle (normalized slope)
+  const slopePctPerCandle = ((last - first) / first) * 100 / n;
+
+  // Convert to degrees: we treat 1 candle width as 1 unit on the x-axis
+  // and the slope as the y-axis change in %. atan gives the angle.
+  // Multiply by a scale factor so that a "normal" trending SMA reads ~30–45°.
+  // Factor of 10 empirically maps typical intraday SMA slopes to visual degrees.
+  const angleDeg = Math.atan(slopePctPerCandle * 10) * (180 / Math.PI);
+  return angleDeg;
+}
 //
 // Thresholds in EB units:
 //   Estrecho     : range < 1.5 EB  AND  (overlap ≥ 50%  OR  range < 1 EB)
@@ -140,13 +175,20 @@ function classifyByEB(
   fullBoxPct: number,
   priceBoxPct: number,
   overlapRatio: number,
+  sma20AngleDeg: number,
 ): F4Box["state"] {
   // 3F Contraído: SMA200 far, price+SMA20 tight
   if (fullBoxPct >= 0.85 && priceBoxPct < 0.45) return "3f_contraido";
 
   const ratio = rectRange / eb;
 
-  if (ratio < 1.5) return "estrecho";
+  if (ratio < 1.5) {
+    // Estrecho requires: SMA20 angle < 20° AND overlap ≥ 50%
+    const isFlat     = Math.abs(sma20AngleDeg) < 20;
+    const isOverlapping = overlapRatio >= 0.50;
+    if (isFlat && isOverlapping) return "estrecho";
+    return "contraido"; // range is tight but movement/angle disqualifies it
+  }
   if (ratio < 2.0) return "contraido";
   if (ratio < 4.0) return "normal";
   return "amplio";
@@ -234,12 +276,13 @@ export function computeF4Boxes(candles: Candle[]): F4Box[] {
     const fbMid = (fbTop + fbBot) / 2;
     const fullBoxPct = fbMid > 0 ? ((fbTop - fbBot) / fbMid) * 100 : 0;
 
-    // ── EB and overlap ──
-    const eb          = calcEB(window, dayCandlesAll);
+    // ── EB, overlap and SMA20 angle ──
+    const eb           = calcEB(window, dayCandlesAll);
     const overlapRatio = avgBodyOverlap(window);
-    const fullRange   = fbTop - fbBot;
+    const sma20Angle   = calcSMA20AngleDeg(window, sma20Map);
+    const fullRange    = fbTop - fbBot;
 
-    const state = classifyByEB(fullRange, eb, fullBoxPct, priceBoxPct, overlapRatio);
+    const state = classifyByEB(fullRange, eb, fullBoxPct, priceBoxPct, overlapRatio, sma20Angle);
 
     // 3F Contraído: draw only price box (SMA200 visually outside)
     const rectTop = state === "3f_contraido" ? pbTop : fbTop;
