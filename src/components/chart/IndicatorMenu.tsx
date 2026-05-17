@@ -37,8 +37,9 @@ const ENTRIES: Entry[] = [
     group: "Osciladores",
     label: (c) => `MACD (${c.macdFast}, ${c.macdSlow}, ${c.macdSignal})`,
   },
+  { key: "fantastic4",      group: "4 Fantásticos",        label: () => "4 Fantásticos (30 min cierre)" },
   // ─── NEW ────────────────────────────────────────────────────────────────────
-  { key: "fantastic4", group: "4 Fantásticos",   label: () => "4 Fantásticos (30 min cierre)" },
+  { key: "openingPosition", group: "Posición en Apertura",  label: () => "Posición en Apertura (40 min)" },
 ];
 
 export function IndicatorMenu() {

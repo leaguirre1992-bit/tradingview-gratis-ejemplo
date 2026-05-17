@@ -22,7 +22,8 @@ const TITLES: Record<IndicatorKey, string> = {
   rsi: "RSI",
   macd: "MACD",
   volume: "Volumen",
-  fantastic4: "4 Fantásticos", // ← NEW
+  fantastic4:       "4 Fantásticos",
+  openingPosition:  "Posición en Apertura", // ← NEW
 };
 
 export function IndicatorSettingsDialog() {
@@ -108,7 +109,8 @@ function SettingsForm({ target, config, onSave, onReset }: FormProps) {
         macdSignal: clamp(draft.macdSignal, 2, 100),
       });
     else if (target === "volume") onSave({});
-    else if (target === "fantastic4") onSave({}); // ← NEW — no configurable params
+    else if (target === "fantastic4") onSave({});
+    else if (target === "openingPosition") onSave({}); // ← NEW
   }
 
   return (
@@ -156,6 +158,13 @@ function SettingsForm({ target, config, onSave, onReset }: FormProps) {
         <p className="text-xs text-tv-text-muted">
           Clasifica los últimos 30 min del día anterior en: Estrecho, Contraído,
           Normal, Amplio o 3F Contraídos. No tiene parámetros configurables.
+        </p>
+      )}
+      {target === "openingPosition" && (
+        <p className="text-xs text-tv-text-muted">
+          Dibuja las 7 zonas de posición en apertura durante los primeros 40 min
+          del día (09:30–10:10 NY), basadas en los 4F del día anterior.
+          No tiene parámetros configurables.
         </p>
       )}
 

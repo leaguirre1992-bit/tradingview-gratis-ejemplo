@@ -26,6 +26,7 @@ import { formatPrice, formatVolume } from "@/lib/format";
 import { IndicatorPill } from "./IndicatorPill";
 import { MeasureOverlay } from "./MeasureOverlay";
 import { Fantastic4Overlay } from "./Fantastic4Overlay"; // ← NEW
+import { OpeningPositionOverlay } from "./OpeningPositionOverlay"; // ← NEW
 
 interface MeasurePoint {
   time: number;
@@ -831,6 +832,16 @@ export function PriceChart({ symbol, timeframe }: Props) {
           chart={chartRef.current}
           candleSeries={candleSeriesRef.current}
           enabled={indicators.fantastic4 && !hidden.fantastic4}
+        />
+      )}
+
+      {/* ─── Posición en Apertura overlay ──────────────────────────────────── */}
+      {candlesTick > 0 && (
+        <OpeningPositionOverlay
+          candles={candlesRef.current}
+          chart={chartRef.current}
+          candleSeries={candleSeriesRef.current}
+          enabled={indicators.openingPosition && !hidden.openingPosition}
         />
       )}
 
