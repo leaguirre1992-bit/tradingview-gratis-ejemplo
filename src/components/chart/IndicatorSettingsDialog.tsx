@@ -25,7 +25,6 @@ const TITLES: Record<IndicatorKey, string> = {
   fantastic4:       "4 Fantásticos",
   openingPosition:  "Posición en Apertura",
   vriVvi:           "VRI / VVI — Oliver Velez", // ← NEW
-  vriVvi:           "VRI / VVI — Oliver Velez", // ← NEW
 };
 
 export function IndicatorSettingsDialog() {
