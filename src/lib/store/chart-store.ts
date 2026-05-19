@@ -11,8 +11,9 @@ export type IndicatorKey =
   | "rsi"
   | "macd"
   | "volume"
-  | "fantastic4"      // ← existing
-  | "openingPosition"; // ← NEW
+  | "fantastic4"
+  | "openingPosition"
+  | "vriVvi";          // ← NEW: Velas Rojas/Verdes Ignoradas (Oliver Velez)
 
 export type DrawingTool = "cursor" | "hline" | "measure" | "eraser";
 
@@ -50,7 +51,8 @@ export const INDICATOR_COLORS: Record<IndicatorKey, string> = {
   macd: "#2962ff",
   volume: "#787b86",
   fantastic4:       "#ffb74d",
-  openingPosition:  "#4db6ac", // ← NEW — teal
+  openingPosition:  "#4db6ac",
+  vriVvi:           "#00C853", // ← NEW — verde VRI (las VVI usan rojo inline)
 };
 
 export const DEFAULT_WATCHLIST = [
@@ -122,7 +124,8 @@ export const useChartStore = create<ChartState>()(
         macd: false,
         volume: true,
         fantastic4:       false,
-        openingPosition:  false, // ← NEW
+        openingPosition:  false,
+        vriVvi:           false, // ← NEW — off por defecto
       },
       hidden: {
         sma8:             false,
@@ -132,7 +135,8 @@ export const useChartStore = create<ChartState>()(
         macd:             false,
         volume:           false,
         fantastic4:       false,
-        openingPosition:  false, // ← NEW
+        openingPosition:  false,
+        vriVvi:           false, // ← NEW
       },
       config: { ...DEFAULT_CONFIG },
       watchlist: DEFAULT_WATCHLIST,
