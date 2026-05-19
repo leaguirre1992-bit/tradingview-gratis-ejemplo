@@ -3,7 +3,7 @@
 /**
  * VRIVVIOverlay.tsx
  * Renderiza las señales VRI/VVI como markers sobre el gráfico de velas.
- * Compatible con lightweight-charts v5 (usa createSeriesMarkers en lugar de setMarkers).
+ * Compatible con lightweight-charts v5 (usa createSeriesMarkers).
  *
  * Coloca este archivo en: src/components/chart/VRIVVIOverlay.tsx
  */
@@ -14,7 +14,7 @@ import {
   type IChartApi,
   type ISeriesApi,
   type ISeriesMarkersPluginApi,
-  type UTCTimestamp,
+  type Time,
 } from "lightweight-charts";
 import type { Candle } from "@/lib/binance/types";
 import { sma } from "@/lib/indicators";
@@ -30,21 +30,15 @@ interface Props {
   chart: IChartApi | null;
   candleSeries: ISeriesApi<"Candlestick"> | null;
   enabled: boolean;
-  /** Período de la MA rápida (default 8 — igual que SMA8 del visor) */
   maFastPeriod?: number;
-  /** Período de la MA lenta (default 20 — igual que SMA20 del visor) */
   maSlowPeriod?: number;
-  /** Filtro de tendencia: "NONE" | "SLOW_RISING" | "BOTH_RISING" */
   trendFilter?: "NONE" | "SLOW_RISING" | "BOTH_RISING";
-  /** % mínimo del cuerpo de la barra de control (default 30) */
   minBodyPct?: number;
-  /** % mínimo de posición de la barra ignorada (default 30) */
   minPositionPct?: number;
 }
 
 export function VRIVVIOverlay({
   candles,
-  chart,
   candleSeries,
   enabled,
   maFastPeriod   = 8,
@@ -53,30 +47,22 @@ export function VRIVVIOverlay({
   minBodyPct     = 30,
   minPositionPct = 30,
 }: Props) {
-  // Referencia al plugin de markers de lw-charts v5
-  const markersPluginRef = useRef<ISeriesMarkersPluginApi<UTCTimestamp> | null>(null);
+  const markersPluginRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
 
   useEffect(() => {
     if (!candleSeries) return;
 
-    // Limpiar plugin anterior si existe
+    // Limpiar plugin anterior
     if (markersPluginRef.current) {
-      try {
-        markersPluginRef.current.setMarkers([]);
-      } catch {
-        // puede ya no existir
-      }
+      try { markersPluginRef.current.setMarkers([]); } catch { /* ignorar */ }
       markersPluginRef.current = null;
     }
 
     if (!enabled || candles.length < 3) return;
 
-    // ── Calcular MAs alineadas con el array de velas ──────────────────────
-    const sma8pts  = sma(candles, maFastPeriod);
-    const sma20pts = sma(candles, maSlowPeriod);
-
-    const maFastValues = alignMA(candles, sma8pts.map((p) => p.value));
-    const maSlowValues = alignMA(candles, sma20pts.map((p) => p.value));
+    // ── Calcular MAs alineadas ────────────────────────────────────────────
+    const maFastValues = alignMA(candles, sma(candles, maFastPeriod).map((p) => p.value));
+    const maSlowValues = alignMA(candles, sma(candles, maSlowPeriod).map((p) => p.value));
 
     // ── Calcular señales ──────────────────────────────────────────────────
     const signals: VRIVVISignal[] = calculateVRIVVI(candles, {
@@ -88,48 +74,31 @@ export function VRIVVIOverlay({
       minPositionPct,
     });
 
-    // ── Convertir señales a markers de lightweight-charts v5 ─────────────
-    const markers = signals.map((s) => ({
-      time:     s.time as UTCTimestamp,
-      position: s.type === "VRI" ? ("aboveBar" as const) : ("belowBar" as const),
-      color:    s.type === "VRI" ? "#00C853" : "#FF1744",
-      shape:    s.type === "VRI" ? ("arrowUp" as const)  : ("arrowDown" as const),
-      text:     s.type === "VRI" ? "VRI" : "VVI",
-      size:     1.5,
-    }));
+    // ── Construir markers ─────────────────────────────────────────────────
+    const markers = signals
+      .map((s) => ({
+        time:     s.time as Time,
+        position: s.type === "VRI" ? ("aboveBar" as const) : ("belowBar" as const),
+        color:    s.type === "VRI" ? "#00C853" : "#FF1744",
+        shape:    s.type === "VRI" ? ("arrowUp" as const) : ("arrowDown" as const),
+        text:     s.type === "VRI" ? "VRI" : "VVI",
+        size:     1.5,
+      }))
+      .sort((a, b) => (a.time as number) - (b.time as number));
 
-    // lightweight-charts requiere markers ordenados por tiempo
-    markers.sort((a, b) => a.time - b.time);
-
-    // Crear el plugin de markers (API de lw-charts v5)
+    // ── Crear plugin de markers (API lw-charts v5) ────────────────────────
     const plugin = createSeriesMarkers(candleSeries, markers);
     markersPluginRef.current = plugin;
 
-    // Cleanup al desmontar o cambiar props
     return () => {
-      try {
-        plugin.setMarkers([]);
-      } catch {
-        // serie puede haberse eliminado ya
-      }
+      try { plugin.setMarkers([]); } catch { /* serie puede ya no existir */ }
       markersPluginRef.current = null;
     };
-  }, [
-    candles,
-    candleSeries,
-    enabled,
-    maFastPeriod,
-    maSlowPeriod,
-    trendFilter,
-    minBodyPct,
-    minPositionPct,
-  ]);
+  }, [candles, candleSeries, enabled, maFastPeriod, maSlowPeriod, trendFilter, minBodyPct, minPositionPct]);
 
-  // Este componente no renderiza DOM propio — sólo llama a la API del chart
   return null;
 }
 
-// ─── Utilidad auxiliar ───────────────────────────────────────────────────────
 export function findSignalAt(
   signals: VRIVVISignal[],
   time: number,
