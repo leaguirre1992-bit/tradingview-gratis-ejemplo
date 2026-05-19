@@ -23,7 +23,9 @@ const TITLES: Record<IndicatorKey, string> = {
   macd: "MACD",
   volume: "Volumen",
   fantastic4:       "4 Fantásticos",
-  openingPosition:  "Posición en Apertura", // ← NEW
+  openingPosition:  "Posición en Apertura",
+  vriVvi:           "VRI / VVI — Oliver Velez", // ← NEW
+  vriVvi:           "VRI / VVI — Oliver Velez", // ← NEW
 };
 
 export function IndicatorSettingsDialog() {
@@ -110,7 +112,8 @@ function SettingsForm({ target, config, onSave, onReset }: FormProps) {
       });
     else if (target === "volume") onSave({});
     else if (target === "fantastic4") onSave({});
-    else if (target === "openingPosition") onSave({}); // ← NEW
+    else if (target === "openingPosition") onSave({});
+    else if (target === "vriVvi") onSave({}); // ← NEW
   }
 
   return (
@@ -165,6 +168,13 @@ function SettingsForm({ target, config, onSave, onReset }: FormProps) {
           Dibuja las 7 zonas de posición en apertura durante los primeros 40 min
           del día (09:30–10:10 NY), basadas en los 4F del día anterior.
           No tiene parámetros configurables.
+        </p>
+      )}
+      {target === "vriVvi" && (
+        <p className="text-xs text-tv-text-muted">
+          Detecta el patrón de 3 velas VRI (Vela Roja Ignorada 🐂) y VVI
+          (Vela Verde Ignorada 🐻) de Oliver Velez. Usa SMA 8 y SMA 20 como
+          filtro de tendencia. No tiene parámetros configurables aquí.
         </p>
       )}
 
