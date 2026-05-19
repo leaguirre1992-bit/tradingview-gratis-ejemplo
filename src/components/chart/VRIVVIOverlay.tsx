@@ -3,15 +3,19 @@
 /**
  * VRIVVIOverlay.tsx
  * Renderiza las señales VRI/VVI como markers sobre el gráfico de velas.
+ * Compatible con lightweight-charts v5 (usa createSeriesMarkers en lugar de setMarkers).
  *
  * Coloca este archivo en: src/components/chart/VRIVVIOverlay.tsx
- *
- * Sigue exactamente el mismo patrón que Fantastic4Overlay y OpeningPositionOverlay
- * que ya existen en el proyecto.
  */
 
 import { useEffect, useRef } from "react";
-import type { IChartApi, ISeriesApi } from "lightweight-charts";
+import {
+  createSeriesMarkers,
+  type IChartApi,
+  type ISeriesApi,
+  type ISeriesMarkersPlugin,
+  type UTCTimestamp,
+} from "lightweight-charts";
 import type { Candle } from "@/lib/binance/types";
 import { sma } from "@/lib/indicators";
 import {
@@ -43,26 +47,29 @@ export function VRIVVIOverlay({
   chart,
   candleSeries,
   enabled,
-  maFastPeriod  = 8,
-  maSlowPeriod  = 20,
-  trendFilter   = "BOTH_RISING",
-  minBodyPct    = 30,
+  maFastPeriod   = 8,
+  maSlowPeriod   = 20,
+  trendFilter    = "BOTH_RISING",
+  minBodyPct     = 30,
   minPositionPct = 30,
 }: Props) {
-  // Guardamos la referencia a los markers para poder limpiarlos
-  const markersApplied = useRef(false);
+  // Referencia al plugin de markers de lw-charts v5
+  const markersPluginRef = useRef<ISeriesMarkersPlugin<UTCTimestamp> | null>(null);
 
   useEffect(() => {
     if (!candleSeries) return;
 
-    if (!enabled || candles.length < 3) {
-      // Limpiar markers si se deshabilita el indicador
-      if (markersApplied.current) {
-        candleSeries.setMarkers([]);
-        markersApplied.current = false;
+    // Limpiar plugin anterior si existe
+    if (markersPluginRef.current) {
+      try {
+        markersPluginRef.current.setMarkers([]);
+      } catch {
+        // puede ya no existir
       }
-      return;
+      markersPluginRef.current = null;
     }
+
+    if (!enabled || candles.length < 3) return;
 
     // ── Calcular MAs alineadas con el array de velas ──────────────────────
     const sma8pts  = sma(candles, maFastPeriod);
@@ -81,33 +88,31 @@ export function VRIVVIOverlay({
       minPositionPct,
     });
 
-    // ── Convertir señales a markers de lightweight-charts ─────────────────
-    // setMarkers reemplaza todos los markers del candleSeries, así que
-    // incluimos sólo los de VRI/VVI (no mezclamos con otros indicadores
-    // que usen markers en la misma serie).
+    // ── Convertir señales a markers de lightweight-charts v5 ─────────────
     const markers = signals.map((s) => ({
-      time:     s.time as number,
+      time:     s.time as UTCTimestamp,
       position: s.type === "VRI" ? ("aboveBar" as const) : ("belowBar" as const),
       color:    s.type === "VRI" ? "#00C853" : "#FF1744",
       shape:    s.type === "VRI" ? ("arrowUp" as const)  : ("arrowDown" as const),
-      text:     s.type === "VRI" ? "🐂 VRI"  : "🐻 VVI",
+      text:     s.type === "VRI" ? "VRI" : "VVI",
       size:     1.5,
     }));
 
     // lightweight-charts requiere markers ordenados por tiempo
-    markers.sort((a, b) => (a.time as number) - (b.time as number));
+    markers.sort((a, b) => a.time - b.time);
 
-    candleSeries.setMarkers(markers);
-    markersApplied.current = markers.length > 0;
+    // Crear el plugin de markers (API de lw-charts v5)
+    const plugin = createSeriesMarkers(candleSeries, markers);
+    markersPluginRef.current = plugin;
 
-    // Cleanup: limpiar markers cuando el componente se desmonta o cambia enabled
+    // Cleanup al desmontar o cambiar props
     return () => {
       try {
-        candleSeries.setMarkers([]);
-        markersApplied.current = false;
+        plugin.setMarkers([]);
       } catch {
         // serie puede haberse eliminado ya
       }
+      markersPluginRef.current = null;
     };
   }, [
     candles,
@@ -124,9 +129,7 @@ export function VRIVVIOverlay({
   return null;
 }
 
-// ─── Hook auxiliar para el tooltip de señales ────────────────────────────────
-// Exportamos también una función que, dado un timestamp, busca si hay una
-// señal VRI/VVI cercana (útil para mostrar niveles SL/TP en un futuro tooltip).
+// ─── Utilidad auxiliar ───────────────────────────────────────────────────────
 export function findSignalAt(
   signals: VRIVVISignal[],
   time: number,
