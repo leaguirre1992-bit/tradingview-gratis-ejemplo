@@ -38,8 +38,9 @@ const ENTRIES: Entry[] = [
     label: (c) => `MACD (${c.macdFast}, ${c.macdSlow}, ${c.macdSignal})`,
   },
   { key: "fantastic4",      group: "4 Fantásticos",        label: () => "4 Fantásticos (30 min cierre)" },
-  // ─── NEW ────────────────────────────────────────────────────────────────────
   { key: "openingPosition", group: "Posición en Apertura",  label: () => "Posición en Apertura (40 min)" },
+  // ─── NEW ────────────────────────────────────────────────────────────────────
+  { key: "vriVvi",          group: "Patrones de Precio",   label: () => "VRI / VVI — Oliver Velez 🐂🐻" },
 ];
 
 export function IndicatorMenu() {

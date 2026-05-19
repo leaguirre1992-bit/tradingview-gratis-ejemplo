@@ -27,6 +27,7 @@ import { IndicatorPill } from "./IndicatorPill";
 import { MeasureOverlay } from "./MeasureOverlay";
 import { Fantastic4Overlay } from "./Fantastic4Overlay"; // ← NEW
 import { OpeningPositionOverlay } from "./OpeningPositionOverlay"; // ← NEW
+import { VRIVVIOverlay } from "./VRIVVIOverlay"; // ← NEW: Velas Rojas/Verdes Ignoradas
 
 interface MeasurePoint {
   time: number;
@@ -842,6 +843,16 @@ export function PriceChart({ symbol, timeframe }: Props) {
           chart={chartRef.current}
           candleSeries={candleSeriesRef.current}
           enabled={indicators.openingPosition && !hidden.openingPosition}
+        />
+      )}
+
+      {/* ─── VRI / VVI overlay — Velas Rojas y Verdes Ignoradas ────────────── */}
+      {candlesTick > 0 && (
+        <VRIVVIOverlay
+          candles={candlesRef.current}
+          chart={chartRef.current}
+          candleSeries={candleSeriesRef.current}
+          enabled={indicators.vriVvi && !hidden.vriVvi}
         />
       )}
 
