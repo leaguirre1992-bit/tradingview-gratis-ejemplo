@@ -13,7 +13,7 @@ import {
   createSeriesMarkers,
   type IChartApi,
   type ISeriesApi,
-  type ISeriesMarkersPlugin,
+  type ISeriesMarkersPluginApi,
   type UTCTimestamp,
 } from "lightweight-charts";
 import type { Candle } from "@/lib/binance/types";
@@ -54,7 +54,7 @@ export function VRIVVIOverlay({
   minPositionPct = 30,
 }: Props) {
   // Referencia al plugin de markers de lw-charts v5
-  const markersPluginRef = useRef<ISeriesMarkersPlugin<UTCTimestamp> | null>(null);
+  const markersPluginRef = useRef<ISeriesMarkersPluginApi<UTCTimestamp> | null>(null);
 
   useEffect(() => {
     if (!candleSeries) return;
