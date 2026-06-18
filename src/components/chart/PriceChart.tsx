@@ -25,9 +25,14 @@ import {
 import { formatPrice, formatVolume } from "@/lib/format";
 import { IndicatorPill } from "./IndicatorPill";
 import { MeasureOverlay } from "./MeasureOverlay";
-import { Fantastic4Overlay } from "./Fantastic4Overlay"; // ← NEW
-import { OpeningPositionOverlay } from "./OpeningPositionOverlay"; // ← NEW
-import { VRIVVIOverlay } from "./VRIVVIOverlay"; // ← NEW: Velas Rojas/Verdes Ignoradas
+import { Fantastic4Overlay } from "./Fantastic4Overlay";
+import { OpeningPositionOverlay } from "./OpeningPositionOverlay";
+import { VRIVVIOverlay } from "./VRIVVIOverlay";
+import { CandleSizeOverlay } from "./CandleSizeOverlay";
+import { RBIGBIOverlay } from "./RBIGBIOverlay";
+import { CambioColorOverlay } from "./CambioColorOverlay";
+import { VelaElefanteOverlay } from "./VelaElefanteOverlay";
+import { VelaElefanteEventosOverlay } from "./VelaElefanteEventosOverlay";
 
 interface MeasurePoint {
   time: number;
@@ -55,18 +60,33 @@ interface Props {
   timeframe: Timeframe;
 }
 
-const TV_COLORS = {
-  bg: "#131722",
-  panel: "#1e222d",
-  border: "#2a2e39",
-  text: "#d1d4dc",
-  textMuted: "#787b86",
-  green: "#26a69a",
-  red: "#ef5350",
-  blue: "#2962ff",
-  yellow: "#ffb74d",
-  purple: "#ab47bc",
-  grid: "#1e222d",
+// ── Paletas de colores para cada tema ──────────────────────────────────────────
+const DARK_COLORS = {
+  bg:         "#131722",
+  panel:      "#1e222d",
+  border:     "#2a2e39",
+  text:       "#d1d4dc",
+  textMuted:  "#787b86",
+  green:      "#26a69a",
+  red:        "#ef5350",
+  blue:       "#2962ff",
+  yellow:     "#ffb74d",
+  purple:     "#ab47bc",
+  grid:       "#1e222d",
+};
+
+const LIGHT_COLORS = {
+  bg:         "#ffffff",
+  panel:      "#f0f3fa",
+  border:     "#d1d4dc",
+  text:       "#131722",
+  textMuted:  "#787b86",
+  green:      "#089981",
+  red:        "#f23645",
+  blue:       "#2962ff",
+  yellow:     "#f59f00",
+  purple:     "#9c27b0",
+  grid:       "#e9ebef",
 };
 
 interface HoverInfo {
@@ -100,50 +120,56 @@ export function PriceChart({ symbol, timeframe }: Props) {
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
-  const sma8Ref = useRef<ISeriesApi<"Line"> | null>(null);
-  const sma20Ref = useRef<ISeriesApi<"Line"> | null>(null);
+  const sma8Ref   = useRef<ISeriesApi<"Line"> | null>(null);
+  const sma20Ref  = useRef<ISeriesApi<"Line"> | null>(null);
   const sma200Ref = useRef<ISeriesApi<"Line"> | null>(null);
-  const rsiRef = useRef<ISeriesApi<"Line"> | null>(null);
-  const rsi30Ref = useRef<ISeriesApi<"Line"> | null>(null);
-  const rsi70Ref = useRef<ISeriesApi<"Line"> | null>(null);
-  const macdRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const rsiRef    = useRef<ISeriesApi<"Line"> | null>(null);
+  const rsi30Ref  = useRef<ISeriesApi<"Line"> | null>(null);
+  const rsi70Ref  = useRef<ISeriesApi<"Line"> | null>(null);
+  const macdRef       = useRef<ISeriesApi<"Line"> | null>(null);
   const macdSignalRef = useRef<ISeriesApi<"Line"> | null>(null);
-  const macdHistRef = useRef<ISeriesApi<"Histogram"> | null>(null);
-  const candlesRef = useRef<Candle[]>([]);
-  const priceLinesMapRef = useRef<Map<string, IPriceLine>>(new Map());
+  const macdHistRef   = useRef<ISeriesApi<"Histogram"> | null>(null);
+  const candlesRef        = useRef<Candle[]>([]);
+  const priceLinesMapRef  = useRef<Map<string, IPriceLine>>(new Map());
 
-  const indicators = useChartStore((s) => s.indicators);
-  const hidden = useChartStore((s) => s.hidden);
-  const config = useChartStore((s) => s.config);
-  const tool = useChartStore((s) => s.tool);
-  const priceLines = useChartStore((s) => s.priceLines);
-  const addPriceLine = useChartStore((s) => s.addPriceLine);
-  const removeIndicator = useChartStore((s) => s.removeIndicator);
-  const toggleHidden = useChartStore((s) => s.toggleHidden);
+  const indicators        = useChartStore((s) => s.indicators);
+  const hidden            = useChartStore((s) => s.hidden);
+  const config            = useChartStore((s) => s.config);
+  const tool              = useChartStore((s) => s.tool);
+  const priceLines        = useChartStore((s) => s.priceLines);
+  const addPriceLine      = useChartStore((s) => s.addPriceLine);
+  const removeIndicator   = useChartStore((s) => s.removeIndicator);
+  const toggleHidden      = useChartStore((s) => s.toggleHidden);
   const setSettingsTarget = useChartStore((s) => s.setSettingsTarget);
 
-  // Refs to avoid recreating subscribeClick on every tool change
-  const toolRef = useRef(tool);
-  toolRef.current = tool;
-  const addPriceLineRef = useRef(addPriceLine);
-  addPriceLineRef.current = addPriceLine;
-  const symbolRef = useRef(symbol);
-  symbolRef.current = symbol;
-  const configRef = useRef(config);
-  configRef.current = config;
+  // ─── Appearance state ──────────────────────────────────────────────────────
+  const chartTheme     = useChartStore((s) => s.chartTheme);
+  const showPriceLines = useChartStore((s) => s.showPriceLines);
+  const showTimeLines  = useChartStore((s) => s.showTimeLines);
+  const targetDate     = useChartStore((s) => s.targetDate);
+  const setTargetDate  = useChartStore((s) => s.setTargetDate);
+  const TV_COLORS = chartTheme === "light" ? LIGHT_COLORS : DARK_COLORS;
 
-  const [hover, setHover] = useState<HoverInfo | null>(null);
-  const [lastPrice, setLastPrice] = useState<{ value: number; pct: number } | null>(null);
-  const [lastValues, setLastValues] = useState<LastValues>({});
+  // Refs to avoid recreating subscribeClick on every tool change
+  const toolRef          = useRef(tool);
+  toolRef.current        = tool;
+  const addPriceLineRef  = useRef(addPriceLine);
+  addPriceLineRef.current = addPriceLine;
+  const symbolRef        = useRef(symbol);
+  symbolRef.current      = symbol;
+  const configRef        = useRef(config);
+  configRef.current      = config;
+
+  const [hover, setHover]             = useState<HoverInfo | null>(null);
+  const [lastPrice, setLastPrice]     = useState<{ value: number; pct: number } | null>(null);
+  const [lastValues, setLastValues]   = useState<LastValues>({});
   const [paneOffsets, setPaneOffsets] = useState<PaneOffset[]>([]);
-  const [measure, setMeasure] = useState<MeasureState>(INITIAL_MEASURE);
-  const [renderTick, setRenderTick] = useState(0);
-  // ← NEW: expose candles array to React so Fantastic4Overlay re-renders on load
+  const [measure, setMeasure]         = useState<MeasureState>(INITIAL_MEASURE);
+  const [renderTick, setRenderTick]   = useState(0);
   const [candlesTick, setCandlesTick] = useState(0);
   const measureRef = useRef(measure);
   measureRef.current = measure;
 
-  // Helper — compute pane top offsets from chart layout
   function recomputePaneOffsets() {
     if (!chartRef.current) return;
     const panes = chartRef.current.panes();
@@ -157,7 +183,7 @@ export function PriceChart({ symbol, timeframe }: Props) {
     setPaneOffsets(offsets);
   }
 
-  // Create chart once
+  // ── Create chart once ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -174,18 +200,14 @@ export function PriceChart({ symbol, timeframe }: Props) {
           const date = new Date(time * 1000);
           return new Intl.DateTimeFormat("es-US", {
             timeZone: "America/New_York",
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-            hour: "numeric",
-            minute: "numeric",
-            hour12: false,
+            year: "numeric", month: "short", day: "numeric",
+            hour: "numeric", minute: "numeric", hour12: false,
           }).format(date);
         },
       },
       grid: {
-        vertLines: { color: TV_COLORS.grid },
-        horzLines: { color: TV_COLORS.grid },
+        vertLines: { color: TV_COLORS.grid, visible: showTimeLines },
+        horzLines: { color: TV_COLORS.grid, visible: showPriceLines },
       },
       crosshair: {
         mode: CrosshairMode.Normal,
@@ -199,13 +221,12 @@ export function PriceChart({ symbol, timeframe }: Props) {
       timeScale: {
         tickMarkFormatter: (time: any, tickMarkType: number) => {
           const date = new Date(time * 1000);
-          if (tickMarkType === 0) {
+          if (tickMarkType === 0)
             return new Intl.DateTimeFormat("es-US", { timeZone: "America/New_York", year: "numeric" }).format(date);
-          } else if (tickMarkType === 1) {
+          if (tickMarkType === 1)
             return new Intl.DateTimeFormat("es-US", { timeZone: "America/New_York", month: "short" }).format(date);
-          } else if (tickMarkType === 2) {
+          if (tickMarkType === 2)
             return new Intl.DateTimeFormat("es-US", { timeZone: "America/New_York", day: "numeric" }).format(date);
-          }
           return new Intl.DateTimeFormat("es-US", { timeZone: "America/New_York", hour: "numeric", minute: "numeric", hour12: false }).format(date);
         },
         borderColor: TV_COLORS.border,
@@ -217,40 +238,34 @@ export function PriceChart({ symbol, timeframe }: Props) {
       autoSize: true,
     });
 
-    // PANE 0 — Candles + EMAs
+    // PANE 0 — Candles + SMAs
     candleSeriesRef.current = chart.addSeries(CandlestickSeries, {
-      upColor: TV_COLORS.green,
-      downColor: TV_COLORS.red,
-      borderUpColor: TV_COLORS.green,
+      upColor:        TV_COLORS.green,
+      downColor:      TV_COLORS.red,
+      borderUpColor:  TV_COLORS.green,
       borderDownColor: TV_COLORS.red,
-      wickUpColor: TV_COLORS.green,
-      wickDownColor: TV_COLORS.red,
+      wickUpColor:    TV_COLORS.green,
+      wickDownColor:  TV_COLORS.red,
       priceLineColor: TV_COLORS.textMuted,
       priceLineStyle: 2,
     });
 
     sma8Ref.current = chart.addSeries(LineSeries, {
-      color: INDICATOR_COLORS.sma8,
-      lineWidth: 1,
-      priceLineVisible: false,
-      lastValueVisible: false,
+      color: INDICATOR_COLORS.sma8, lineWidth: 1,
+      priceLineVisible: false, lastValueVisible: false,
     });
     sma20Ref.current = chart.addSeries(LineSeries, {
-      color: INDICATOR_COLORS.sma20,
-      lineWidth: 1,
-      priceLineVisible: false,
-      lastValueVisible: false,
+      color: INDICATOR_COLORS.sma20, lineWidth: 1,
+      priceLineVisible: false, lastValueVisible: false,
     });
     sma200Ref.current = chart.addSeries(LineSeries, {
-      color: INDICATOR_COLORS.sma200,
-      lineWidth: 2,
-      priceLineVisible: false,
-      lastValueVisible: false,
+      color: INDICATOR_COLORS.sma200, lineWidth: 2,
+      priceLineVisible: false, lastValueVisible: false,
     });
 
     chartRef.current = chart;
 
-    // Click handler — add horizontal price line when hline tool is active
+    // Click handler
     chart.subscribeClick((param) => {
       if (!param.point || !candleSeriesRef.current) return;
       const price = candleSeriesRef.current.coordinateToPrice(param.point.y);
@@ -266,23 +281,11 @@ export function PriceChart({ symbol, timeframe }: Props) {
         const time = Number(param.time);
         const current = measureRef.current;
         if (current.phase === "idle") {
-          setMeasure({
-            phase: "placing",
-            a: { time, price },
-            b: { time, price },
-          });
+          setMeasure({ phase: "placing", a: { time, price }, b: { time, price } });
         } else if (current.phase === "placing") {
-          setMeasure({
-            phase: "done",
-            a: current.a,
-            b: { time, price },
-          });
+          setMeasure({ phase: "done", a: current.a, b: { time, price } });
         } else {
-          setMeasure({
-            phase: "placing",
-            a: { time, price },
-            b: { time, price },
-          });
+          setMeasure({ phase: "placing", a: { time, price }, b: { time, price } });
         }
       }
     });
@@ -292,9 +295,7 @@ export function PriceChart({ symbol, timeframe }: Props) {
       if (
         toolRef.current === "measure" &&
         measureRef.current.phase === "placing" &&
-        param.point &&
-        param.time &&
-        candleSeriesRef.current
+        param.point && param.time && candleSeriesRef.current
       ) {
         const price = candleSeriesRef.current.coordinateToPrice(param.point.y);
         if (price !== null && isFinite(price)) {
@@ -305,22 +306,14 @@ export function PriceChart({ symbol, timeframe }: Props) {
         }
       }
 
-      if (!param.time || !candleSeriesRef.current) {
-        setHover(null);
-        return;
-      }
+      if (!param.time || !candleSeriesRef.current) { setHover(null); return; }
       const data = param.seriesData.get(candleSeriesRef.current);
-      const vol = volumeSeriesRef.current
-        ? param.seriesData.get(volumeSeriesRef.current)
-        : null;
+      const vol  = volumeSeriesRef.current ? param.seriesData.get(volumeSeriesRef.current) : null;
       if (data && "open" in data) {
         const o = data.open as number;
         const c = data.close as number;
         setHover({
-          o,
-          h: data.high as number,
-          l: data.low as number,
-          c,
+          o, h: data.high as number, l: data.low as number, c,
           v: vol && "value" in vol ? (vol.value as number) : 0,
           time: Number(param.time),
           pct: o === 0 ? 0 : ((c - o) / o) * 100,
@@ -328,13 +321,11 @@ export function PriceChart({ symbol, timeframe }: Props) {
       }
     });
 
-    // Re-render measure overlay on pan / zoom so pixel coords stay in sync
     const tsRangeHandler = () => setRenderTick((t) => t + 1);
     chart.timeScale().subscribeVisibleTimeRangeChange(tsRangeHandler);
     const logicalRangeHandler = () => setRenderTick((t) => t + 1);
     chart.timeScale().subscribeVisibleLogicalRangeChange(logicalRangeHandler);
 
-    // ResizeObserver — recompute pane offsets when chart container resizes
     const ro = new ResizeObserver(() => {
       requestAnimationFrame(() => recomputePaneOffsets());
     });
@@ -346,42 +337,73 @@ export function PriceChart({ symbol, timeframe }: Props) {
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(logicalRangeHandler);
       ro.disconnect();
       chart.remove();
-      chartRef.current = null;
+      chartRef.current      = null;
       candleSeriesRef.current = null;
       volumeSeriesRef.current = null;
       priceLinesMapRef.current.clear();
-      sma8Ref.current = null;
-      sma20Ref.current = null;
-      sma200Ref.current = null;
-      rsiRef.current = null;
-      rsi30Ref.current = null;
-      rsi70Ref.current = null;
-      macdRef.current = null;
-      macdSignalRef.current = null;
-      macdHistRef.current = null;
+      sma8Ref.current   = null; sma20Ref.current  = null; sma200Ref.current = null;
+      rsiRef.current    = null; rsi30Ref.current  = null; rsi70Ref.current  = null;
+      macdRef.current   = null; macdSignalRef.current = null; macdHistRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Manage volume — overlay at the bottom of the main pane
+  // ── Navegar a fecha seleccionada ─────────────────────────────────────────────
+  useEffect(() => {
+    if (!targetDate || !chartRef.current) return;
+    const ts = chartRef.current.timeScale();
+    // Centrar el gráfico en el timestamp pedido mostrando ~3 días de contexto
+    const HALF_WINDOW = 60 * 60 * 24 * 1.5; // 1.5 días en segundos
+    ts.setVisibleRange({
+      from: (targetDate - HALF_WINDOW) as UTCTimestamp,
+      to:   (targetDate + HALF_WINDOW) as UTCTimestamp,
+    });
+    // Limpiar para que no vuelva a ejecutarse
+    setTargetDate(null);
+  }, [targetDate, setTargetDate]);
+  useEffect(() => {
+    if (!chartRef.current) return;
+    chartRef.current.applyOptions({
+      layout: {
+        background: { color: TV_COLORS.bg },
+        textColor: TV_COLORS.text,
+      },
+      grid: {
+        vertLines: { color: TV_COLORS.grid, visible: showTimeLines },
+        horzLines: { color: TV_COLORS.grid, visible: showPriceLines },
+      },
+      crosshair: {
+        vertLine: { labelBackgroundColor: TV_COLORS.panel },
+        horzLine: { labelBackgroundColor: TV_COLORS.panel },
+      },
+      rightPriceScale: { borderColor: TV_COLORS.border, textColor: TV_COLORS.textMuted },
+      timeScale: { borderColor: TV_COLORS.border },
+    });
+    // Update candle colors to match theme
+    candleSeriesRef.current?.applyOptions({
+      upColor:         TV_COLORS.green,
+      downColor:       TV_COLORS.red,
+      borderUpColor:   TV_COLORS.green,
+      borderDownColor: TV_COLORS.red,
+      wickUpColor:     TV_COLORS.green,
+      wickDownColor:   TV_COLORS.red,
+    });
+  }, [chartTheme, showPriceLines, showTimeLines]);
+
+  // ── Volume ───────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!chartRef.current) return;
     if (indicators.volume && !volumeSeriesRef.current) {
-      const v = chartRef.current.addSeries(
-        HistogramSeries,
-        {
-          priceFormat: { type: "volume" },
-          priceScaleId: "volume",
-          color: TV_COLORS.textMuted,
-          priceLineVisible: false,
-          lastValueVisible: false,
-        },
-        0,
-      );
+      const v = chartRef.current.addSeries(HistogramSeries, {
+        priceFormat: { type: "volume" },
+        priceScaleId: "volume",
+        color: TV_COLORS.textMuted,
+        priceLineVisible: false, lastValueVisible: false,
+      }, 0);
       v.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
       volumeSeriesRef.current = v;
       const data = candlesRef.current.map((k) => ({
-        time: k.time as UTCTimestamp,
-        value: k.volume,
+        time: k.time as UTCTimestamp, value: k.volume,
         color: k.close >= k.open ? `${TV_COLORS.green}66` : `${TV_COLORS.red}66`,
       }));
       v.setData(data);
@@ -392,46 +414,15 @@ export function PriceChart({ symbol, timeframe }: Props) {
     requestAnimationFrame(() => recomputePaneOffsets());
   }, [indicators.volume]);
 
-  // RSI pane
+  // ── RSI pane ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!chartRef.current) return;
     if (indicators.rsi && !rsiRef.current) {
       const paneIndex = 1;
-      const r = chartRef.current.addSeries(
-        LineSeries,
-        {
-          color: INDICATOR_COLORS.rsi,
-          lineWidth: 1,
-          priceLineVisible: false,
-          lastValueVisible: false,
-        },
-        paneIndex,
-      );
-      const r30 = chartRef.current.addSeries(
-        LineSeries,
-        {
-          color: TV_COLORS.textMuted,
-          lineWidth: 1,
-          lineStyle: 2,
-          priceLineVisible: false,
-          lastValueVisible: false,
-        },
-        paneIndex,
-      );
-      const r70 = chartRef.current.addSeries(
-        LineSeries,
-        {
-          color: TV_COLORS.textMuted,
-          lineWidth: 1,
-          lineStyle: 2,
-          priceLineVisible: false,
-          lastValueVisible: false,
-        },
-        paneIndex,
-      );
-      rsiRef.current = r;
-      rsi30Ref.current = r30;
-      rsi70Ref.current = r70;
+      const r   = chartRef.current.addSeries(LineSeries, { color: INDICATOR_COLORS.rsi, lineWidth: 1, priceLineVisible: false, lastValueVisible: false }, paneIndex);
+      const r30 = chartRef.current.addSeries(LineSeries, { color: TV_COLORS.textMuted, lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false }, paneIndex);
+      const r70 = chartRef.current.addSeries(LineSeries, { color: TV_COLORS.textMuted, lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false }, paneIndex);
+      rsiRef.current = r; rsi30Ref.current = r30; rsi70Ref.current = r70;
       try {
         chartRef.current.panes()[1]?.setStretchFactor(1);
         chartRef.current.panes()[0]?.setStretchFactor(3);
@@ -441,65 +432,37 @@ export function PriceChart({ symbol, timeframe }: Props) {
       chartRef.current.removeSeries(rsiRef.current);
       if (rsi30Ref.current) chartRef.current.removeSeries(rsi30Ref.current);
       if (rsi70Ref.current) chartRef.current.removeSeries(rsi70Ref.current);
-      rsiRef.current = null;
-      rsi30Ref.current = null;
-      rsi70Ref.current = null;
+      rsiRef.current = null; rsi30Ref.current = null; rsi70Ref.current = null;
     }
     requestAnimationFrame(() => recomputePaneOffsets());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [indicators.rsi]);
 
-  // MACD pane
+  // ── MACD pane ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!chartRef.current) return;
     if (indicators.macd && !macdRef.current) {
       const paneIndex = indicators.rsi ? 2 : 1;
-      const m = chartRef.current.addSeries(
-        LineSeries,
-        {
-          color: INDICATOR_COLORS.macd,
-          lineWidth: 1,
-          priceLineVisible: false,
-          lastValueVisible: false,
-        },
-        paneIndex,
-      );
-      const s = chartRef.current.addSeries(
-        LineSeries,
-        {
-          color: TV_COLORS.yellow,
-          lineWidth: 1,
-          priceLineVisible: false,
-          lastValueVisible: false,
-        },
-        paneIndex,
-      );
-      const h = chartRef.current.addSeries(
-        HistogramSeries,
-        { priceLineVisible: false, lastValueVisible: false },
-        paneIndex,
-      );
-      macdRef.current = m;
-      macdSignalRef.current = s;
-      macdHistRef.current = h;
+      const m = chartRef.current.addSeries(LineSeries, { color: INDICATOR_COLORS.macd, lineWidth: 1, priceLineVisible: false, lastValueVisible: false }, paneIndex);
+      const s = chartRef.current.addSeries(LineSeries, { color: TV_COLORS.yellow, lineWidth: 1, priceLineVisible: false, lastValueVisible: false }, paneIndex);
+      const h = chartRef.current.addSeries(HistogramSeries, { priceLineVisible: false, lastValueVisible: false }, paneIndex);
+      macdRef.current = m; macdSignalRef.current = s; macdHistRef.current = h;
       try {
         chartRef.current.panes()[paneIndex]?.setStretchFactor(1);
         chartRef.current.panes()[0]?.setStretchFactor(3);
       } catch {}
       updateMACD();
     } else if (!indicators.macd && macdRef.current && chartRef.current) {
-      if (macdRef.current) chartRef.current.removeSeries(macdRef.current);
+      if (macdRef.current)       chartRef.current.removeSeries(macdRef.current);
       if (macdSignalRef.current) chartRef.current.removeSeries(macdSignalRef.current);
-      if (macdHistRef.current) chartRef.current.removeSeries(macdHistRef.current);
-      macdRef.current = null;
-      macdSignalRef.current = null;
-      macdHistRef.current = null;
+      if (macdHistRef.current)   chartRef.current.removeSeries(macdHistRef.current);
+      macdRef.current = null; macdSignalRef.current = null; macdHistRef.current = null;
     }
     requestAnimationFrame(() => recomputePaneOffsets());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [indicators.macd, indicators.rsi]);
 
-  // Visibility — eye toggle (hidden state) + enabled state combined
+  // ── Visibility (eye toggle) ──────────────────────────────────────────────────
   useEffect(() => {
     const v = (key: IndicatorKey) => indicators[key] && !hidden[key];
     sma8Ref.current?.applyOptions({ visible: v("sma8") });
@@ -514,20 +477,12 @@ export function PriceChart({ symbol, timeframe }: Props) {
     if (volumeSeriesRef.current) volumeSeriesRef.current.applyOptions({ visible: v("volume") });
   }, [indicators, hidden]);
 
-  // Recompute indicators when config changes (periods)
-  useEffect(() => {
-    updateSMAs();
-  }, [config.sma8, config.sma20, config.sma200]);
+  // ── Config changes ───────────────────────────────────────────────────────────
+  useEffect(() => { updateSMAs(); }, [config.sma8, config.sma20, config.sma200]);
+  useEffect(() => { updateRSI();  }, [config.rsi]);
+  useEffect(() => { updateMACD(); }, [config.macdFast, config.macdSlow, config.macdSignal]);
 
-  useEffect(() => {
-    updateRSI();
-  }, [config.rsi]);
-
-  useEffect(() => {
-    updateMACD();
-  }, [config.macdFast, config.macdSlow, config.macdSignal]);
-
-  // Sync price lines from store to the candle series
+  // ── Sync price lines from store ──────────────────────────────────────────────
   useEffect(() => {
     const series = candleSeriesRef.current;
     if (!series) return;
@@ -537,28 +492,22 @@ export function PriceChart({ symbol, timeframe }: Props) {
 
     for (const [id, apiLine] of map.entries()) {
       if (!activeIds.has(id)) {
-        try {
-          series.removePriceLine(apiLine);
-        } catch {}
+        try { series.removePriceLine(apiLine); } catch {}
         map.delete(id);
       }
     }
     for (const pl of linesForThisSymbol) {
       if (!map.has(pl.id)) {
         const apiLine = series.createPriceLine({
-          price: pl.price,
-          color: TV_COLORS.blue,
-          lineWidth: 1,
-          lineStyle: 2,
-          axisLabelVisible: true,
-          title: "",
+          price: pl.price, color: TV_COLORS.blue,
+          lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: "",
         });
         map.set(pl.id, apiLine);
       }
     }
   }, [priceLines, symbol]);
 
-  // Cursor style when drawing tools are active + reset measure on tool change
+  // ── Cursor + reset measure ───────────────────────────────────────────────────
   useEffect(() => {
     if (containerRef.current) {
       containerRef.current.style.cursor =
@@ -567,64 +516,42 @@ export function PriceChart({ symbol, timeframe }: Props) {
     if (tool !== "measure") setMeasure(INITIAL_MEASURE);
   }, [tool]);
 
+  // ── Helper: update indicators ────────────────────────────────────────────────
   function updateSMAs() {
     const c = candlesRef.current;
     if (c.length === 0) return;
     const cfg = configRef.current;
-    let last8: number | undefined;
-    let last20: number | undefined;
-    let last200: number | undefined;
+    let last8: number | undefined, last20: number | undefined, last200: number | undefined;
 
     if (sma8Ref.current) {
       const data = sma(c, cfg.sma8);
-      sma8Ref.current.setData(
-        data.map((p) => ({ time: p.time as UTCTimestamp, value: p.value })),
-      );
+      sma8Ref.current.setData(data.map((p) => ({ time: p.time as UTCTimestamp, value: p.value })));
       last8 = data.at(-1)?.value;
     }
     if (sma20Ref.current) {
       const data = sma(c, cfg.sma20);
-      sma20Ref.current.setData(
-        data.map((p) => ({ time: p.time as UTCTimestamp, value: p.value })),
-      );
+      sma20Ref.current.setData(data.map((p) => ({ time: p.time as UTCTimestamp, value: p.value })));
       last20 = data.at(-1)?.value;
     }
     if (sma200Ref.current) {
       const data = sma(c, cfg.sma200);
-      sma200Ref.current.setData(
-        data.map((p) => ({ time: p.time as UTCTimestamp, value: p.value })),
-      );
+      sma200Ref.current.setData(data.map((p) => ({ time: p.time as UTCTimestamp, value: p.value })));
       last200 = data.at(-1)?.value;
     }
     const lastVol = c.at(-1)?.volume;
-    setLastValues((prev) => ({
-      ...prev,
-      sma8: last8,
-      sma20: last20,
-      sma200: last200,
-      volume: lastVol,
-    }));
+    setLastValues((prev) => ({ ...prev, sma8: last8, sma20: last20, sma200: last200, volume: lastVol }));
   }
 
   function updateRSI() {
     const c = candlesRef.current;
     if (c.length === 0 || !rsiRef.current) return;
-    const cfg = configRef.current;
-    const data = rsi(c, cfg.rsi).map((p) => ({
-      time: p.time as UTCTimestamp,
-      value: p.value,
-    }));
+    const cfg  = configRef.current;
+    const data = rsi(c, cfg.rsi).map((p) => ({ time: p.time as UTCTimestamp, value: p.value }));
     rsiRef.current.setData(data);
     if (rsi30Ref.current && data.length > 0)
-      rsi30Ref.current.setData([
-        { time: data[0].time, value: 30 },
-        { time: data[data.length - 1].time, value: 30 },
-      ]);
+      rsi30Ref.current.setData([{ time: data[0].time, value: 30 }, { time: data[data.length - 1].time, value: 30 }]);
     if (rsi70Ref.current && data.length > 0)
-      rsi70Ref.current.setData([
-        { time: data[0].time, value: 70 },
-        { time: data[data.length - 1].time, value: 70 },
-      ]);
+      rsi70Ref.current.setData([{ time: data[0].time, value: 70 }, { time: data[data.length - 1].time, value: 70 }]);
     setLastValues((prev) => ({ ...prev, rsi: data.at(-1)?.value }));
   }
 
@@ -632,30 +559,18 @@ export function PriceChart({ symbol, timeframe }: Props) {
     const c = candlesRef.current;
     if (c.length === 0 || !macdRef.current) return;
     const cfg = configRef.current;
-    const m = macd(c, cfg.macdFast, cfg.macdSlow, cfg.macdSignal);
-    macdRef.current.setData(
-      m.map((p) => ({ time: p.time as UTCTimestamp, value: p.macd })),
-    );
-    macdSignalRef.current?.setData(
-      m.map((p) => ({ time: p.time as UTCTimestamp, value: p.signal })),
-    );
-    macdHistRef.current?.setData(
-      m.map((p) => ({
-        time: p.time as UTCTimestamp,
-        value: p.histogram,
-        color: p.histogram >= 0 ? `${TV_COLORS.green}80` : `${TV_COLORS.red}80`,
-      })),
-    );
+    const m   = macd(c, cfg.macdFast, cfg.macdSlow, cfg.macdSignal);
+    macdRef.current.setData(m.map((p) => ({ time: p.time as UTCTimestamp, value: p.macd })));
+    macdSignalRef.current?.setData(m.map((p) => ({ time: p.time as UTCTimestamp, value: p.signal })));
+    macdHistRef.current?.setData(m.map((p) => ({
+      time: p.time as UTCTimestamp, value: p.histogram,
+      color: p.histogram >= 0 ? `${TV_COLORS.green}80` : `${TV_COLORS.red}80`,
+    })));
     const last = m.at(-1);
-    setLastValues((prev) => ({
-      ...prev,
-      macd: last?.macd,
-      macdSignal: last?.signal,
-      macdHist: last?.histogram,
-    }));
+    setLastValues((prev) => ({ ...prev, macd: last?.macd, macdSignal: last?.signal, macdHist: last?.histogram }));
   }
 
-  // Load historical data + subscribe live
+  // ── Load data + live subscription ────────────────────────────────────────────
   useEffect(() => {
     let unsub: (() => void) | null = null;
     let cancelled = false;
@@ -663,39 +578,29 @@ export function PriceChart({ symbol, timeframe }: Props) {
     async function load() {
       try {
         const isCrypto = symbol.endsWith("USDT");
-        const klines = isCrypto 
+        const klines = isCrypto
           ? await fetchKlines(symbol, timeframe, 1000)
           : await fetchPolygonKlines(symbol, timeframe, 50000);
-          
+
         if (cancelled) return;
         candlesRef.current = klines;
         if (candleSeriesRef.current) {
-          candleSeriesRef.current.setData(
-            klines.map((k) => ({
-              time: k.time as UTCTimestamp,
-              open: k.open,
-              high: k.high,
-              low: k.low,
-              close: k.close,
-            })),
-          );
+          candleSeriesRef.current.setData(klines.map((k) => ({
+            time: k.time as UTCTimestamp,
+            open: k.open, high: k.high, low: k.low, close: k.close,
+          })));
         }
         if (volumeSeriesRef.current) {
-          volumeSeriesRef.current.setData(
-            klines.map((k) => ({
-              time: k.time as UTCTimestamp,
-              value: k.volume,
-              color: k.close >= k.open ? `${TV_COLORS.green}66` : `${TV_COLORS.red}66`,
-            })),
-          );
+          volumeSeriesRef.current.setData(klines.map((k) => ({
+            time: k.time as UTCTimestamp, value: k.volume,
+            color: k.close >= k.open ? `${TV_COLORS.green}66` : `${TV_COLORS.red}66`,
+          })));
         }
-        updateSMAs();
-        updateRSI();
-        updateMACD();
+        updateSMAs(); updateRSI(); updateMACD();
         chartRef.current?.timeScale().fitContent();
         candleSeriesRef.current?.priceScale().applyOptions({ autoScale: true });
         requestAnimationFrame(() => recomputePaneOffsets());
-        setCandlesTick((t) => t + 1); // ← NEW: signal candles are ready
+        setCandlesTick((t) => t + 1);
 
         if (klines.length > 0) {
           const last = klines[klines.length - 1];
@@ -706,12 +611,10 @@ export function PriceChart({ symbol, timeframe }: Props) {
           });
         }
 
-        // Only subscribe to WS if it's a crypto symbol
         if (isCrypto) {
           const ws = getBinanceWS();
           unsub = ws.subscribeKline({
-            symbol,
-            interval: timeframe,
+            symbol, interval: timeframe,
             onCandle: (k) => {
               if (!candleSeriesRef.current) return;
               const arr = candlesRef.current;
@@ -721,26 +624,15 @@ export function PriceChart({ symbol, timeframe }: Props) {
               } else if (!lastCandle || k.time > lastCandle.time) {
                 arr.push(k);
                 if (arr.length > 2000) arr.shift();
-              } else {
-                return;
-              }
-              candleSeriesRef.current.update({
-                time: k.time as UTCTimestamp,
-                open: k.open,
-                high: k.high,
-                low: k.low,
-                close: k.close,
-              });
+              } else { return; }
+              candleSeriesRef.current.update({ time: k.time as UTCTimestamp, open: k.open, high: k.high, low: k.low, close: k.close });
               if (volumeSeriesRef.current) {
                 volumeSeriesRef.current.update({
-                  time: k.time as UTCTimestamp,
-                  value: k.volume,
+                  time: k.time as UTCTimestamp, value: k.volume,
                   color: k.close >= k.open ? `${TV_COLORS.green}66` : `${TV_COLORS.red}66`,
                 });
               }
-              updateSMAs();
-              updateRSI();
-              updateMACD();
+              updateSMAs(); updateRSI(); updateMACD();
               const prev = arr[arr.length - 2] ?? lastCandle;
               setLastPrice({
                 value: k.close,
@@ -755,32 +647,16 @@ export function PriceChart({ symbol, timeframe }: Props) {
     }
 
     load();
-
-    return () => {
-      cancelled = true;
-      if (unsub) unsub();
-    };
+    return () => { cancelled = true; if (unsub) unsub(); };
   }, [symbol, timeframe]);
 
-  const greenOrRed = (n: number) =>
-    n >= 0 ? "text-tv-green" : "text-tv-red";
+  const greenOrRed = (n: number) => n >= 0 ? "text-tv-green" : "text-tv-red";
 
-  // Helpers for pill rendering
-  const isShown = (key: IndicatorKey) =>
-    indicators[key] && (key === "volume" || true); // always renderable if enabled
-  void isShown;
-
-  // Determine which pane each indicator lives in (based on current layout)
-  const rsiPaneIdx = 1;
+  const rsiPaneIdx  = 1;
   const macdPaneIdx = indicators.rsi ? 2 : 1;
 
   let measureRender: React.ReactNode = null;
-  if (
-    measure.a &&
-    measure.b &&
-    chartRef.current &&
-    candleSeriesRef.current
-  ) {
+  if (measure.a && measure.b && chartRef.current && candleSeriesRef.current) {
     const ts = chartRef.current.timeScale();
     const aX = ts.timeToCoordinate(measure.a.time as UTCTimestamp);
     const bX = ts.timeToCoordinate(measure.b.time as UTCTimestamp);
@@ -788,32 +664,22 @@ export function PriceChart({ symbol, timeframe }: Props) {
     const bY = candleSeriesRef.current.priceToCoordinate(measure.b.price);
 
     if (aX !== null && bX !== null && aY !== null && bY !== null) {
-      const priceDiff = measure.b.price - measure.a.price;
-      const pctChange =
-        measure.a.price === 0 ? 0 : (priceDiff / measure.a.price) * 100;
-      const isUp = priceDiff >= 0;
-      const start = Math.min(measure.a.time, measure.b.time);
-      const end = Math.max(measure.a.time, measure.b.time);
-      const inRange = candlesRef.current.filter(
-        (c) => c.time >= start && c.time <= end,
-      );
-      const bars = inRange.length;
-      const volume = inRange.reduce((s, c) => s + c.volume, 0);
-      const dur = durationLabel(measure.a.time, measure.b.time);
+      const priceDiff  = measure.b.price - measure.a.price;
+      const pctChange  = measure.a.price === 0 ? 0 : (priceDiff / measure.a.price) * 100;
+      const isUp       = priceDiff >= 0;
+      const start      = Math.min(measure.a.time, measure.b.time);
+      const end        = Math.max(measure.a.time, measure.b.time);
+      const inRange    = candlesRef.current.filter((c) => c.time >= start && c.time <= end);
+      const bars       = inRange.length;
+      const volume     = inRange.reduce((s, c) => s + c.volume, 0);
+      const dur        = durationLabel(measure.a.time, measure.b.time);
 
       measureRender = (
         <MeasureOverlay
-          aX={aX}
-          aY={aY}
-          bX={bX}
-          bY={bY}
-          priceDiff={priceDiff}
-          pctChange={pctChange}
-          bars={bars}
-          volume={volume}
-          durationText={dur}
-          isUp={isUp}
-          isPreview={measure.phase === "placing"}
+          aX={aX} aY={aY} bX={bX} bY={bY}
+          priceDiff={priceDiff} pctChange={pctChange}
+          bars={bars} volume={volume} durationText={dur}
+          isUp={isUp} isPreview={measure.phase === "placing"}
         />
       );
     }
@@ -825,43 +691,86 @@ export function PriceChart({ symbol, timeframe }: Props) {
       <div ref={containerRef} className="h-full w-full" />
       {measureRender}
 
-      {/* ─── 4 Fantásticos overlay ─────────────────────────────────────────── */}
-      {/* candlesTick + renderTick ensure repaint on load and on pan/zoom */}
       {candlesTick > 0 && (
         <Fantastic4Overlay
-          candles={candlesRef.current}
-          chart={chartRef.current}
+          candles={candlesRef.current} chart={chartRef.current}
           candleSeries={candleSeriesRef.current}
           enabled={indicators.fantastic4 && !hidden.fantastic4}
         />
       )}
-
-      {/* ─── Posición en Apertura overlay ──────────────────────────────────── */}
       {candlesTick > 0 && (
         <OpeningPositionOverlay
-          candles={candlesRef.current}
-          chart={chartRef.current}
+          candles={candlesRef.current} chart={chartRef.current}
           candleSeries={candleSeriesRef.current}
           enabled={indicators.openingPosition && !hidden.openingPosition}
         />
       )}
-
-      {/* ─── VRI / VVI overlay — Velas Rojas y Verdes Ignoradas ────────────── */}
       {candlesTick > 0 && (
         <VRIVVIOverlay
-          candles={candlesRef.current}
-          chart={chartRef.current}
+          candles={candlesRef.current} chart={chartRef.current}
           candleSeries={candleSeriesRef.current}
           enabled={indicators.vriVvi && !hidden.vriVvi}
         />
       )}
+      {candlesTick > 0 && (
+        <RBIGBIOverlay
+          candles={candlesRef.current} chart={chartRef.current}
+          candleSeries={candleSeriesRef.current}
+          enabled={indicators.rbiGbi && !hidden.rbiGbi}
+        />
+      )}
+      {candlesTick > 0 && (
+        <CambioColorOverlay
+          candles={candlesRef.current} chart={chartRef.current}
+          candleSeries={candleSeriesRef.current}
+          enabled={indicators.cambioColor && !hidden.cambioColor}
+        />
+      )}
+      {candlesTick > 0 && (
+        <VelaElefanteOverlay
+          candles={candlesRef.current} chart={chartRef.current}
+          candleSeries={candleSeriesRef.current}
+          enabled={indicators.velaElefante && !hidden.velaElefante}
+        />
+      )}
+      {candlesTick > 0 && (
+        <VelaElefanteEventosOverlay
+          candles={candlesRef.current} chart={chartRef.current}
+          candleSeries={candleSeriesRef.current}
+          ebConfirmadaEnabled={indicators.ebConfirmada && !hidden.ebConfirmada}
+          ebPlusEnabled={indicators.ebPlusEvent && !hidden.ebPlusEvent}
+          ebDualEnabled={indicators.ebDualEvent && !hidden.ebDualEvent}
+          ebViolentaEnabled={indicators.ebViolentaEvent && !hidden.ebViolentaEvent}
+        />
+      )}
+      {candlesTick > 0 && (
+        <CandleSizeOverlay
+          candles={candlesRef.current} chart={chartRef.current}
+          candleSeries={candleSeriesRef.current}
+          enabled={
+            (indicators.tamPequena   && !hidden.tamPequena)   ||
+            (indicators.tamNormal    && !hidden.tamNormal)    ||
+            (indicators.tamEB        && !hidden.tamEB)        ||
+            (indicators.tamEBPlus    && !hidden.tamEBPlus)    ||
+            (indicators.tamDual      && !hidden.tamDual)      ||
+            (indicators.tamViolencia && !hidden.tamViolencia)
+          }
+          config={{
+            pequeña:   indicators.tamPequena   && !hidden.tamPequena,
+            normal:    indicators.tamNormal     && !hidden.tamNormal,
+            eb:        indicators.tamEB         && !hidden.tamEB,
+            ebPlus:    indicators.tamEBPlus     && !hidden.tamEBPlus,
+            dual:      indicators.tamDual       && !hidden.tamDual,
+            violencia: indicators.tamViolencia  && !hidden.tamViolencia,
+          }}
+        />
+      )}
 
-      {/* Top-left of main pane: symbol info + OHLC + Volume pill + SMA pills */}
+      {/* Top-left info overlay */}
       <div
         style={{ top: (paneOffsets[0]?.top ?? 0) + 12, left: 12 }}
         className="pointer-events-none absolute z-10 flex flex-col gap-1 text-xs tabular-nums"
       >
-        {/* Row 1: symbol info + OHLC stats inline on hover (fixed height, never wraps) */}
         <div className="flex h-5 flex-nowrap items-center gap-x-3 overflow-hidden whitespace-nowrap">
           <div className="flex shrink-0 items-center gap-2 text-[13px] font-semibold">
             <span className="text-tv-text">{symbol}</span>
@@ -872,30 +781,16 @@ export function PriceChart({ symbol, timeframe }: Props) {
           </div>
           {hover && (
             <div className="flex items-center gap-x-3 text-[11px]">
-              <span className="text-tv-text-muted">
-                O <span className={greenOrRed(hover.c - hover.o)}>{formatPrice(hover.o)}</span>
-              </span>
-              <span className="text-tv-text-muted">
-                H <span className={greenOrRed(hover.c - hover.o)}>{formatPrice(hover.h)}</span>
-              </span>
-              <span className="text-tv-text-muted">
-                L <span className={greenOrRed(hover.c - hover.o)}>{formatPrice(hover.l)}</span>
-              </span>
-              <span className="text-tv-text-muted">
-                C <span className={greenOrRed(hover.c - hover.o)}>{formatPrice(hover.c)}</span>
-              </span>
-              <span className={greenOrRed(hover.pct)}>
-                {hover.pct >= 0 ? "+" : ""}
-                {hover.pct.toFixed(2)}%
-              </span>
-              <span className="text-tv-text-muted">
-                Vol <span className="text-tv-text">{formatVolume(hover.v)}</span>
-              </span>
+              <span className="text-tv-text-muted">O <span className={greenOrRed(hover.c - hover.o)}>{formatPrice(hover.o)}</span></span>
+              <span className="text-tv-text-muted">H <span className={greenOrRed(hover.c - hover.o)}>{formatPrice(hover.h)}</span></span>
+              <span className="text-tv-text-muted">L <span className={greenOrRed(hover.c - hover.o)}>{formatPrice(hover.l)}</span></span>
+              <span className="text-tv-text-muted">C <span className={greenOrRed(hover.c - hover.o)}>{formatPrice(hover.c)}</span></span>
+              <span className={greenOrRed(hover.pct)}>{hover.pct >= 0 ? "+" : ""}{hover.pct.toFixed(2)}%</span>
+              <span className="text-tv-text-muted">Vol <span className="text-tv-text">{formatVolume(hover.v)}</span></span>
             </div>
           )}
         </div>
 
-        {/* Row 2: big live price (always present — reserves space even while loading) */}
         <div className="flex h-7 items-center gap-2">
           {lastPrice ? (
             <>
@@ -903,8 +798,7 @@ export function PriceChart({ symbol, timeframe }: Props) {
                 {formatPrice(lastPrice.value)}
               </span>
               <span className={`text-xs ${greenOrRed(lastPrice.pct)}`}>
-                {lastPrice.pct >= 0 ? "+" : ""}
-                {lastPrice.pct.toFixed(2)}%
+                {lastPrice.pct >= 0 ? "+" : ""}{lastPrice.pct.toFixed(2)}%
               </span>
             </>
           ) : (
@@ -912,14 +806,12 @@ export function PriceChart({ symbol, timeframe }: Props) {
           )}
         </div>
 
-        {/* Indicator pills for the main pane (fixed position below price) */}
         <div className="mt-1 flex flex-col items-start gap-1">
           {indicators.sma8 && (
             <IndicatorPill
               name={`SMA ${config.sma8}`}
               value={lastValues.sma8 !== undefined ? formatPrice(lastValues.sma8) : undefined}
-              color={INDICATOR_COLORS.sma8}
-              hidden={hidden.sma8}
+              color={INDICATOR_COLORS.sma8} hidden={hidden.sma8}
               onToggleHide={() => toggleHidden("sma8")}
               onSettings={() => setSettingsTarget("sma8")}
               onRemove={() => removeIndicator("sma8")}
@@ -929,8 +821,7 @@ export function PriceChart({ symbol, timeframe }: Props) {
             <IndicatorPill
               name={`SMA ${config.sma20}`}
               value={lastValues.sma20 !== undefined ? formatPrice(lastValues.sma20) : undefined}
-              color={INDICATOR_COLORS.sma20}
-              hidden={hidden.sma20}
+              color={INDICATOR_COLORS.sma20} hidden={hidden.sma20}
               onToggleHide={() => toggleHidden("sma20")}
               onSettings={() => setSettingsTarget("sma20")}
               onRemove={() => removeIndicator("sma20")}
@@ -940,8 +831,7 @@ export function PriceChart({ symbol, timeframe }: Props) {
             <IndicatorPill
               name={`SMA ${config.sma200}`}
               value={lastValues.sma200 !== undefined ? formatPrice(lastValues.sma200) : undefined}
-              color={INDICATOR_COLORS.sma200}
-              hidden={hidden.sma200}
+              color={INDICATOR_COLORS.sma200} hidden={hidden.sma200}
               onToggleHide={() => toggleHidden("sma200")}
               onSettings={() => setSettingsTarget("sma200")}
               onRemove={() => removeIndicator("sma200")}
@@ -951,8 +841,7 @@ export function PriceChart({ symbol, timeframe }: Props) {
             <IndicatorPill
               name="Vol"
               value={lastValues.volume !== undefined ? formatVolume(lastValues.volume) : undefined}
-              color={INDICATOR_COLORS.volume}
-              hidden={hidden.volume}
+              color={INDICATOR_COLORS.volume} hidden={hidden.volume}
               onToggleHide={() => toggleHidden("volume")}
               onSettings={() => setSettingsTarget("volume")}
               onRemove={() => removeIndicator("volume")}
@@ -963,15 +852,11 @@ export function PriceChart({ symbol, timeframe }: Props) {
 
       {/* RSI pane label */}
       {indicators.rsi && paneOffsets[rsiPaneIdx] && (
-        <div
-          style={{ top: paneOffsets[rsiPaneIdx].top + 6, left: 12 }}
-          className="pointer-events-none absolute z-10"
-        >
+        <div style={{ top: paneOffsets[rsiPaneIdx].top + 6, left: 12 }} className="pointer-events-none absolute z-10">
           <IndicatorPill
             name={`RSI ${config.rsi}`}
             value={lastValues.rsi !== undefined ? lastValues.rsi.toFixed(2) : undefined}
-            color={INDICATOR_COLORS.rsi}
-            hidden={hidden.rsi}
+            color={INDICATOR_COLORS.rsi} hidden={hidden.rsi}
             onToggleHide={() => toggleHidden("rsi")}
             onSettings={() => setSettingsTarget("rsi")}
             onRemove={() => removeIndicator("rsi")}
@@ -981,19 +866,11 @@ export function PriceChart({ symbol, timeframe }: Props) {
 
       {/* MACD pane label */}
       {indicators.macd && paneOffsets[macdPaneIdx] && (
-        <div
-          style={{ top: paneOffsets[macdPaneIdx].top + 6, left: 12 }}
-          className="pointer-events-none absolute z-10"
-        >
+        <div style={{ top: paneOffsets[macdPaneIdx].top + 6, left: 12 }} className="pointer-events-none absolute z-10">
           <IndicatorPill
             name={`MACD ${config.macdFast}, ${config.macdSlow}, ${config.macdSignal}`}
-            value={
-              lastValues.macd !== undefined
-                ? `${lastValues.macd.toFixed(2)} / ${(lastValues.macdSignal ?? 0).toFixed(2)}`
-                : undefined
-            }
-            color={INDICATOR_COLORS.macd}
-            hidden={hidden.macd}
+            value={lastValues.macd !== undefined ? `${lastValues.macd.toFixed(2)} / ${(lastValues.macdSignal ?? 0).toFixed(2)}` : undefined}
+            color={INDICATOR_COLORS.macd} hidden={hidden.macd}
             onToggleHide={() => toggleHidden("macd")}
             onSettings={() => setSettingsTarget("macd")}
             onRemove={() => removeIndicator("macd")}
