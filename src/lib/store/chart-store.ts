@@ -13,7 +13,21 @@ export type IndicatorKey =
   | "volume"
   | "fantastic4"
   | "openingPosition"
-  | "vriVvi";          // ← NEW: Velas Rojas/Verdes Ignoradas (Oliver Velez)
+  | "vriVvi"
+  // ─── Tamaño de vela ───────────────────────────────────────────────────────
+  | "tamPequena"
+  | "tamNormal"
+  | "tamEB"
+  | "tamEBPlus"
+  | "tamDual"
+  | "tamViolencia"
+  | "rbiGbi"
+  | "cambioColor"
+  | "velaElefante"
+  | "ebConfirmada"
+  | "ebPlusEvent"
+  | "ebDualEvent"
+  | "ebViolentaEvent";
 
 export type DrawingTool = "cursor" | "hline" | "measure" | "eraser";
 
@@ -52,7 +66,21 @@ export const INDICATOR_COLORS: Record<IndicatorKey, string> = {
   volume: "#787b86",
   fantastic4:       "#ffb74d",
   openingPosition:  "#4db6ac",
-  vriVvi:           "#00C853", // ← NEW — verde VRI (las VVI usan rojo inline)
+  vriVvi:           "#00C853",
+  // Tamaño de vela
+  tamPequena:   "#78909c",
+  tamNormal:    "#b0bec5",
+  tamEB:        "#ffb74d",
+  tamEBPlus:    "#ff7043",
+  tamDual:      "#ef5350",
+  tamViolencia: "#ab47bc",
+  rbiGbi:       "#FF9100",
+  cambioColor:  "#00E5FF",
+  velaElefante: "#0AAC00",
+  ebConfirmada:    "#ffb74d",
+  ebPlusEvent:     "#ff7043",
+  ebDualEvent:     "#ef5350",
+  ebViolentaEvent: "#ab47bc",
 };
 
 export const DEFAULT_WATCHLIST = [
@@ -74,8 +102,12 @@ export const DEFAULT_WATCHLIST = [
   "COIN",
   "STRC",
   "XOM",
+  "C",
   "BTCUSDT"
 ];
+
+// ─── Chart appearance ──────────────────────────────────────────────────────────
+export type ChartTheme = "dark" | "light";
 
 interface ChartState {
   symbol: string;
@@ -87,6 +119,14 @@ interface ChartState {
   /** Periods and parameters for each indicator */
   config: IndicatorConfig;
   watchlist: string[];
+
+  // ─── Appearance ───────────────────────────────────────────────────────────
+  /** Dark (negro) or light (blanco) background */
+  chartTheme: ChartTheme;
+  /** Show/hide horizontal price grid lines */
+  showPriceLines: boolean;
+  /** Show/hide vertical time grid lines */
+  showTimeLines: boolean;
 
   // Ephemeral UI state (not persisted)
   tool: DrawingTool;
@@ -109,6 +149,13 @@ interface ChartState {
   clearPriceLines: (symbol?: string) => void;
   setSymbolDialogOpen: (v: boolean) => void;
   setSettingsTarget: (k: IndicatorKey | null) => void;
+  /** Timestamp UTC (segundos) al que navegar. null = sin acción pendiente */
+  targetDate: number | null;
+  setTargetDate: (ts: number | null) => void;
+  // ─── Appearance actions ───────────────────────────────────────────────────
+  toggleChartTheme: () => void;
+  togglePriceLines: () => void;
+  toggleTimeLines: () => void;
 }
 
 export const useChartStore = create<ChartState>()(
@@ -125,7 +172,20 @@ export const useChartStore = create<ChartState>()(
         volume: true,
         fantastic4:       false,
         openingPosition:  false,
-        vriVvi:           false, // ← NEW — off por defecto
+        vriVvi:           false,
+        tamPequena:   false,
+        tamNormal:    false,
+        tamEB:        false,
+        tamEBPlus:    false,
+        tamDual:      false,
+        tamViolencia: false,
+        rbiGbi:       false,
+        cambioColor:  false,
+        velaElefante: false,
+        ebConfirmada:    false,
+        ebPlusEvent:     false,
+        ebDualEvent:     false,
+        ebViolentaEvent: false,
       },
       hidden: {
         sma8:             false,
@@ -136,10 +196,29 @@ export const useChartStore = create<ChartState>()(
         volume:           false,
         fantastic4:       false,
         openingPosition:  false,
-        vriVvi:           false, // ← NEW
+        vriVvi:           false,
+        tamPequena:   false,
+        tamNormal:    false,
+        tamEB:        false,
+        tamEBPlus:    false,
+        tamDual:      false,
+        tamViolencia: false,
+        rbiGbi:       false,
+        cambioColor:  false,
+        velaElefante: false,
+        ebConfirmada:    false,
+        ebPlusEvent:     false,
+        ebDualEvent:     false,
+        ebViolentaEvent: false,
       },
       config: { ...DEFAULT_CONFIG },
       watchlist: DEFAULT_WATCHLIST,
+
+      // ─── Appearance defaults ─────────────────────────────────────────────
+      chartTheme: "dark",
+      showPriceLines: true,
+      showTimeLines: true,
+
       tool: "cursor",
       priceLines: [],
       symbolDialogOpen: false,
@@ -150,7 +229,6 @@ export const useChartStore = create<ChartState>()(
       toggleIndicator: (key) =>
         set((s) => ({
           indicators: { ...s.indicators, [key]: !s.indicators[key] },
-          // When re-adding, ensure not hidden
           hidden: !s.indicators[key]
             ? { ...s.hidden, [key]: false }
             : s.hidden,
@@ -197,6 +275,16 @@ export const useChartStore = create<ChartState>()(
         })),
       setSymbolDialogOpen: (symbolDialogOpen) => set({ symbolDialogOpen }),
       setSettingsTarget: (settingsTarget) => set({ settingsTarget }),
+      targetDate: null,
+      setTargetDate: (targetDate) => set({ targetDate }),
+
+      // ─── Appearance actions ───────────────────────────────────────────────
+      toggleChartTheme: () =>
+        set((s) => ({ chartTheme: s.chartTheme === "dark" ? "light" : "dark" })),
+      togglePriceLines: () =>
+        set((s) => ({ showPriceLines: !s.showPriceLines })),
+      toggleTimeLines: () =>
+        set((s) => ({ showTimeLines: !s.showTimeLines })),
     }),
     {
       name: "tv-gratis-chart-state",
@@ -207,6 +295,9 @@ export const useChartStore = create<ChartState>()(
         hidden: s.hidden,
         config: s.config,
         watchlist: s.watchlist,
+        chartTheme: s.chartTheme,
+        showPriceLines: s.showPriceLines,
+        showTimeLines: s.showTimeLines,
       }),
     },
   ),
