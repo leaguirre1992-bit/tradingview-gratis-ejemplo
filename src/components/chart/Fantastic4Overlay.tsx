@@ -62,21 +62,40 @@ function getMinEB(price: number): number {
   return 0.50;
 }
 
+/**
+ * Calcula la EB (Elefante Bar) del día usando la MEDIANA de los cuerpos.
+ *
+ * La mediana es robusta a outliers: un día con barras Dual o Violencia
+ * no distorsiona el valor "normal", a diferencia del promedio.
+ *
+ * Escala de tamaños relativa a la barra normal (= mediana):
+ *   Pequeña  = normal × 0.5
+ *   Normal   = mediana
+ *   EB       = normal × 2   ← este valor es lo que retorna la función
+ *   EB+      = normal × 3
+ *   Dual     = normal × 4
+ *   Violencia= normal × 6+
+ *
+ * Se aplica el mínimo de la tabla como piso (según precio de la acción).
+ */
 function calcEB(window4F: Candle[], allDayCandles: Candle[]): number {
-  const windowStart = window4F[0].time;
-  const before = allDayCandles
-    .filter((c) => c.time < windowStart)
-    .slice(-5);
+  const candidates = allDayCandles.length > 0 ? allDayCandles : window4F;
 
-  const last20 = [...before, ...window4F].slice(-20);
-
-  const avgBody =
-    last20.reduce((sum, c) => sum + Math.abs(c.close - c.open), 0) / last20.length;
+  // Mediana de los cuerpos: robusta a barras EB/Dual/Violencia
+  const bodies = candidates
+    .map((c) => Math.abs(c.close - c.open))
+    .sort((a, b) => a - b);
+  const mid = Math.floor(bodies.length / 2);
+  const medianBody =
+    bodies.length % 2 === 1
+      ? bodies[mid]
+      : (bodies[mid - 1] + bodies[mid]) / 2;
 
   const refPrice = window4F[window4F.length - 1].close;
   const minEB = getMinEB(refPrice);
 
-  return Math.max(minEB, 2 * avgBody);
+  // EB = 2 × barra normal (mediana), con piso en el mínimo de la tabla
+  return Math.max(minEB, 2 * medianBody);
 }
 
 // ─── Overlap calculation ──────────────────────────────────────────────────────

@@ -79,13 +79,24 @@ function getMinEB(price: number): number {
   return 0.50;
 }
 
+/**
+ * Calcula la EB usando la MEDIANA de los cuerpos del día anterior completo.
+ * Misma lógica que calcEB en Fantastic4Overlay — ver comentario allí.
+ */
 function calcEBFromWindow(window4F: Candle[], allDayCandles: Candle[]): number {
-  const windowStart = window4F[0].time;
-  const before = allDayCandles.filter((c) => c.time < windowStart).slice(-5);
-  const last20 = [...before, ...window4F].slice(-20);
-  const avgBody = last20.reduce((s, c) => s + Math.abs(c.close - c.open), 0) / last20.length;
+  const candidates = allDayCandles.length > 0 ? allDayCandles : window4F;
+
+  const bodies = candidates
+    .map((c) => Math.abs(c.close - c.open))
+    .sort((a, b) => a - b);
+  const mid = Math.floor(bodies.length / 2);
+  const medianBody =
+    bodies.length % 2 === 1
+      ? bodies[mid]
+      : (bodies[mid - 1] + bodies[mid]) / 2;
+
   const refPrice = window4F[window4F.length - 1].close;
-  return Math.max(getMinEB(refPrice), 2 * avgBody);
+  return Math.max(getMinEB(refPrice), 2 * medianBody);
 }
 
 // ─── Core computation ─────────────────────────────────────────────────────────
