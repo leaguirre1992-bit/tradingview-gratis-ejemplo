@@ -6,27 +6,24 @@ import { fetchTicker24h } from "@/lib/binance/rest";
 import type { Ticker24h } from "@/lib/binance/types";
 import { formatPrice, formatPct, formatVolume } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { DateNavigator } from "@/components/chart/DateNavigator";
 
 export function BottomPanel() {
-  const symbol = useChartStore((s) => s.symbol);
-  const [t, setT] = useState<Ticker24h | null>(null);
+  const symbol       = useChartStore((s) => s.symbol);
+  const setTargetDate = useChartStore((s) => s.setTargetDate);
+  const [t, setT]    = useState<Ticker24h | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setT(null);
     const load = () => {
       fetchTicker24h(symbol)
-        .then((x) => {
-          if (!cancelled) setT(x);
-        })
+        .then((x) => { if (!cancelled) setT(x); })
         .catch(console.error);
     };
     load();
     const id = setInterval(load, 5000);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
+    return () => { cancelled = true; clearInterval(id); };
   }, [symbol]);
 
   const upClass = (n: number) => (n >= 0 ? "text-tv-green" : "text-tv-red");
@@ -49,14 +46,13 @@ export function BottomPanel() {
         value={t ? formatPrice(t.lowPrice) : "—"}
         valueClass="text-tv-red"
       />
-      <Stat
-        label="24h Vol (base)"
-        value={t ? formatVolume(t.volume) : "—"}
-      />
-      <Stat
-        label="24h Vol (USDT)"
-        value={t ? formatVolume(t.quoteVolume) : "—"}
-      />
+      <Stat label="24h Vol (base)"  value={t ? formatVolume(t.volume) : "—"} />
+      <Stat label="24h Vol (USDT)" value={t ? formatVolume(t.quoteVolume) : "—"} />
+
+      {/* Separador y buscador de fecha */}
+      <div className="mx-2 h-5 w-px bg-tv-border" />
+      <DateNavigator onNavigate={(ts) => setTargetDate(ts)} />
+
       <div className="ml-auto flex items-center gap-2 text-[10px] text-tv-text-dim">
         <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-tv-green" />
         <span>Binance · Live</span>
@@ -66,13 +62,9 @@ export function BottomPanel() {
 }
 
 function Stat({
-  label,
-  value,
-  valueClass,
+  label, value, valueClass,
 }: {
-  label: string;
-  value: string;
-  valueClass?: string;
+  label: string; value: string; valueClass?: string;
 }) {
   return (
     <div className="flex items-center gap-1.5 border-r border-tv-border px-3">
