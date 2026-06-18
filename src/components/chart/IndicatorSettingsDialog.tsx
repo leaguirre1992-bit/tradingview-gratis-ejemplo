@@ -24,7 +24,20 @@ const TITLES: Record<IndicatorKey, string> = {
   volume: "Volumen",
   fantastic4:       "4 Fantásticos",
   openingPosition:  "Posición en Apertura",
-  vriVvi:           "VRI / VVI — Oliver Velez", // ← NEW
+  vriVvi:           "VRI / VVI — Oliver Velez",
+  tamPequena:   "Tamaño — Pequeña",
+  tamNormal:    "Tamaño — Normal",
+  tamEB:        "Tamaño — EB",
+  tamEBPlus:    "Tamaño — EB+",
+  tamDual:      "Tamaño — Dual",
+  tamViolencia: "Tamaño — Violencia",
+  rbiGbi:       "RBI & GBI — Oliver Velez",
+  cambioColor:  "Cambio de color — Oliver Velez",
+  velaElefante: "Vela Elefante — Alejandro Iovane / Dreadblitz",
+  ebConfirmada:    "EB confirmada — Oliver Velez",
+  ebPlusEvent:     "EB+ — Oliver Velez",
+  ebDualEvent:     "EB dual — Oliver Velez",
+  ebViolentaEvent: "EB violenta — Oliver Velez",
 };
 
 export function IndicatorSettingsDialog() {
@@ -112,7 +125,20 @@ function SettingsForm({ target, config, onSave, onReset }: FormProps) {
     else if (target === "volume") onSave({});
     else if (target === "fantastic4") onSave({});
     else if (target === "openingPosition") onSave({});
-    else if (target === "vriVvi") onSave({}); // ← NEW
+    else if (target === "vriVvi") onSave({});
+    else if (target === "tamPequena")   onSave({});
+    else if (target === "tamNormal")    onSave({});
+    else if (target === "tamEB")        onSave({});
+    else if (target === "tamEBPlus")    onSave({});
+    else if (target === "tamDual")      onSave({});
+    else if (target === "tamViolencia") onSave({});
+    else if (target === "rbiGbi")       onSave({});
+    else if (target === "cambioColor")  onSave({});
+    else if (target === "velaElefante") onSave({});
+    else if (target === "ebConfirmada")    onSave({});
+    else if (target === "ebPlusEvent")     onSave({});
+    else if (target === "ebDualEvent")     onSave({});
+    else if (target === "ebViolentaEvent") onSave({});
   }
 
   return (
@@ -174,6 +200,63 @@ function SettingsForm({ target, config, onSave, onReset }: FormProps) {
           Detecta el patrón de 3 velas VRI (Vela Roja Ignorada 🐂) y VVI
           (Vela Verde Ignorada 🐻) de Oliver Velez. Usa SMA 8 y SMA 20 como
           filtro de tendencia. No tiene parámetros configurables aquí.
+        </p>
+      )}
+      {target === "rbiGbi" && (
+        <p className="text-xs text-tv-text-muted">
+          Detecta los eventos RBI (Red Bar Ignored 🐂) y GBI (Green Bar Ignored 🐻)
+          de Oliver Velez, donde la primera vela (barra de control) es de tamaño EB,
+          EB+ o Dual. Usa SMA 8 y SMA 20 como filtro de tendencia.
+          No tiene parámetros configurables.
+        </p>
+      )}
+      {target === "cambioColor" && (
+        <p className="text-xs text-tv-text-muted">
+          Detecta los eventos Cambio de Color Verde (Roja → Verde 🟢) y Cambio de Color Rojo
+          (Verde → Roja 🔴), donde la vela ignorada c1 es de tamaño pequeño o normal y
+          la vela de señal c2 rompe su extremo por al menos 1 centavo con un cuerpo de al menos 30%.
+          Usa SMA 8 y SMA 20 como filtro de tendencia. No tiene parámetros configurables.
+        </p>
+      )}
+      {target === "velaElefante" && (
+        <p className="text-xs text-tv-text-muted">
+          Detecta las Velas Elefante (VE_X) de Oliver Velez adaptado por Alejandro Iovane / Dreadblitz.
+          Filtra velas cuyo cuerpo represente al menos el 70% de su rango completo, con un tamaño de cuerpo
+          que supere 1.3 veces el ATR histórico de 100 periodos. Aplica filtro de tendencia usando SMA 8.
+          No tiene parámetros configurables en esta interfaz.
+        </p>
+      )}
+      {target === "ebConfirmada" && (
+        <p className="text-xs text-tv-text-muted">
+          Filtra las Velas Elefante (VE_X) de Oliver Velez adaptadas por Alejandro Iovane / Dreadblitz
+          que tengan exactamente un tamaño de tipo EB. No tiene parámetros configurables.
+        </p>
+      )}
+      {target === "ebPlusEvent" && (
+        <p className="text-xs text-tv-text-muted">
+          Filtra las Velas Elefante (VE_X) de Oliver Velez adaptadas por Alejandro Iovane / Dreadblitz
+          que tengan exactamente un tamaño de tipo EB+. No tiene parámetros configurables.
+        </p>
+      )}
+      {target === "ebDualEvent" && (
+        <p className="text-xs text-tv-text-muted">
+          Filtra las Velas Elefante (VE_X) de Oliver Velez adaptadas por Alejandro Iovane / Dreadblitz
+          que tengan exactamente un tamaño de tipo EB dual. No tiene parámetros configurables.
+        </p>
+      )}
+      {target === "ebViolentaEvent" && (
+        <p className="text-xs text-tv-text-muted">
+          Filtra las Velas Elefante (VE_X) de Oliver Velez adaptadas por Alejandro Iovane / Dreadblitz
+          que tengan exactamente un tamaño de tipo EB violenta. No tiene parámetros configurables.
+        </p>
+      )}
+      {(target === "tamPequena" || target === "tamNormal" || target === "tamEB" ||
+        target === "tamEBPlus" || target === "tamDual" || target === "tamViolencia") && (
+        <p className="text-xs text-tv-text-muted">
+          Plotea un punto de color sobre cada vela cuyo cuerpo corresponda a
+          este tamaño. El tamaño se calcula como múltiplo de la barra normal
+          del día (mediana de cuerpos): Pequeña &lt;×0.75 · Normal ×1 · EB ×2 ·
+          EB+ ×3 · Dual ×4 · Violencia ×6+. No tiene parámetros configurables.
         </p>
       )}
 
