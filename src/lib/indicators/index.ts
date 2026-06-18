@@ -115,3 +115,42 @@ export function macd(
   void slowStartTime;
   return out;
 }
+
+/**
+ * Average True Range (Wilder's smoothing)
+ */
+export function atr(candles: Candle[], period: number): IndicatorPoint[] {
+  const out: IndicatorPoint[] = [];
+  if (candles.length < period) return out;
+
+  // 1. Calcular True Range para cada vela
+  const tr: number[] = [];
+  tr.push(candles[0].high - candles[0].low); // Primera vela
+
+  for (let i = 1; i < candles.length; i++) {
+    const prevClose = candles[i - 1].close;
+    const trVal = Math.max(
+      candles[i].high - candles[i].low,
+      Math.abs(candles[i].high - prevClose),
+      Math.abs(candles[i].low - prevClose)
+    );
+    tr.push(trVal);
+  }
+
+  // 2. Primer valor de ATR = promedio simple (SMA) de los primeros 'period' TRs
+  let sum = 0;
+  for (let i = 0; i < period; i++) {
+    sum += tr[i];
+  }
+  let prevVal = sum / period;
+  out.push({ time: candles[period - 1].time, value: prevVal });
+
+  // 3. Suavizado de Wilder para el resto de velas
+  for (let i = period; i < candles.length; i++) {
+    prevVal = (prevVal * (period - 1) + tr[i]) / period;
+    out.push({ time: candles[i].time, value: prevVal });
+  }
+
+  return out;
+}
+
